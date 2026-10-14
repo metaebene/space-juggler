@@ -34,4 +34,7 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
 
 ## Bauen und testen
 - `swift build`, `swift test`; `Scripts/spike-scenario.sh` ergreift eine angeschlossene SpaceMouse für ~20 s.
-- Version: `SpaceJuggler.version` in `Wire.swift` mit jedem Release erhöhen (der neueste Broker gewinnt).
+- Version: `SpaceJuggler.version` in `Wire.swift` mit jedem Release erhöhen (der neueste Broker gewinnt). Release =
+  SemVer-Tag (`git tag -a x.y.z`, pushen; nur den liest SwiftPM) **und** ein GitHub-Release zum Tag mit Release Notes
+  für Menschen (`gh release create x.y.z --repo metaebene/space-juggler`). Die Apps ziehen mit
+  `swift package update space-juggler` nach und committen ihr `Package.resolved`.
