@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import IOKit.hid
 @_exported import SpaceJugglerProtocol
 
 /// What an app links to get the SpaceMouse (ADR-0001, ADR-0002): connects to Space Juggler, starts it when nobody
@@ -61,6 +62,24 @@ public final class SpaceJugglerConnection {
         self.launcher = launcher
         self.place = place
         self.version = version
+    }
+
+    /// Whether a SpaceMouse of a known model is attached (cable, receiver or Bluetooth), from the I/O Registry alone,
+    /// without Space Juggler and without opening anything: without one, a failure to reach Space Juggler is nothing to
+    /// tell the user about (Kugelblitz ADR-0226).
+    public nonisolated static var isSpaceMouseAttached: Bool {
+        SpaceMouseModel.known.contains { model in
+            let matching = IOServiceMatching(kIOHIDDeviceKey) as NSMutableDictionary
+            matching[kIOHIDVendorIDKey] = model.vendorID
+            matching[kIOHIDProductIDKey] = model.productID
+            var iterator: io_iterator_t = 0
+            guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else { return false }
+            defer { IOObjectRelease(iterator) }
+            let service = IOIteratorNext(iterator)
+            guard service != 0 else { return false }
+            IOObjectRelease(service)
+            return true
+        }
     }
 
     /// The buttons held on all devices together (several SpaceMice act as one, ADR-0003).
