@@ -27,7 +27,7 @@ The package also contains **SpaceMouseKit**, the model catalog and report decodi
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/timpritlove/space-juggler.git", from: "0.2.0")
+.package(url: "https://github.com/metaebene/space-juggler.git", from: "0.2.0")
 // target dependency
 .product(name: "SpaceJugglerClient", package: "space-juggler")
 ```

@@ -1,6 +1,6 @@
 # Space Juggler (SpaceMouseKit) – Hinweise für Claude Code
 
-Gemeinsame SpaceMouse-Unterstützung für Stagehand, Kugelblitz, Space Glider und Space Shuttle (öffentlich: github.com/timpritlove/space-juggler, MIT):
+Gemeinsame SpaceMouse-Unterstützung für Stagehand, Kugelblitz, Space Glider und Space Shuttle (öffentlich: github.com/metaebene/space-juggler, MIT):
 Katalog und Dekodierung (`SpaceMouseKit`) und der Broker **Space Juggler** (Name ohne Zusätze, Entscheidung des Nutzers),
 der jede SpaceMouse hält und an genau einen Client gibt. Schritte: `docs/plan.md`.
 Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.md deutsch). Swift 6, macOS 14+.
