@@ -50,6 +50,18 @@ first client that reconnects.
 | Second copy (B) started with `open -n` while A runs | started, found A (same version) and left |
 | Idle | released the devices when the client quit, left 10 s later |
 
+## Run 4 — all four apps at the device, 2026-10-14 (Tim)
+
+SpaceNavigator and SpaceMouse Pro attached, no 3DxWare, Ultraschall (old Space Shuttle inside) quit; Stagehand
+installed (Release), Kugelblitz (Release from its worktree), Space Glider (`make run`), Space Shuttle in the
+development REAPER.
+
+- Foreground: Stagehand gets the SpaceMouse once one is on its list (Space Juggler starts, its menu bar item appears);
+  Kugelblitz, REAPER with Space Shuttle and an app turned on in Space Glider each get it while in front, Stagehand
+  otherwise. Tim: "Funktioniert alles."
+- Background: Kugelblitz with "Auch im Hintergrund behalten" keeps it while another app without a claim is in front,
+  ahead of Stagehand. Works.
+
 ## Run 2 — at the device (needs Tim)
 
 1. **Events.** `$SPIKE client --name A --background`, move the cap, press both buttons: axes (every tenth) and button
