@@ -20,10 +20,15 @@ public struct Claim: Codable, Sendable, Equatable {
     /// Whether it also wants the SpaceMouse while none of those apps is frontmost (Stagehand; Kugelblitz with "keep in
     /// background").
     public var background: Bool
+    /// In the background, come after every other background claim, whoever had the SpaceMouse in front last
+    /// (Stagehand, which claims its own app only so that "learning" a trigger works while it is in front; Tim,
+    /// 2026-10-14: Stagehand always last). nil = false.
+    public var backgroundLast: Bool?
 
-    public init(apps: [String], background: Bool = false) {
+    public init(apps: [String], background: Bool = false, backgroundLast: Bool? = nil) {
         self.apps = apps
         self.background = background
+        self.backgroundLast = backgroundLast
     }
 }
 
@@ -37,6 +42,10 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
     /// "USB" or "Bluetooth", as IOKit says.
     public var transport: String
     public var serialNumber: String?
+    /// Over Bluetooth: the address bluetoothd publishes (`DeviceAddress`), as IOKit gives it.
+    public var bluetoothAddress: String?
+    /// IOKit's `LocationID`: the USB port, or the Bluetooth link.
+    public var locationID: Int?
     public var battery: Int?
     public var charging: Bool?
     /// Turned on in Space Juggler's menu; input of a device that is off reaches nobody.
@@ -47,13 +56,16 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
     public var led: Bool?
 
     public init(id: String, vendorID: Int, productID: Int, name: String, transport: String, serialNumber: String? = nil,
-                battery: Int? = nil, charging: Bool? = nil, enabled: Bool = true, state: String = "closed", led: Bool? = nil) {
+                bluetoothAddress: String? = nil, locationID: Int? = nil, battery: Int? = nil, charging: Bool? = nil,
+                enabled: Bool = true, state: String = "closed", led: Bool? = nil) {
         self.id = id
         self.vendorID = vendorID
         self.productID = productID
         self.name = name
         self.transport = transport
         self.serialNumber = serialNumber
+        self.bluetoothAddress = bluetoothAddress
+        self.locationID = locationID
         self.battery = battery
         self.charging = charging
         self.enabled = enabled

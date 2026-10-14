@@ -45,6 +45,11 @@ struct ArbiterTests {
         let other = claimant(3, apps: ["x"], background: true, lastFrontUse: 7)
         #expect(Arbiter.decide([stagehand, kugelblitz], frontmostApp: "com.apple.finder", frontmostProcess: 1).holder == 2)
         #expect(Arbiter.decide([stagehand, kugelblitz, other], frontmostApp: "com.apple.finder", frontmostProcess: 1).holder == 3)
+        // Stagehand claims its own app too and so may have had it in front last: still last in the background.
+        let stagehandFront = Claimant(id: 5, processID: 105, claim: Claim(apps: ["me.metaebene.stagehand"], background: true,
+                                                                         backgroundLast: true), connected: 5, lastFrontUse: 99)
+        #expect(Arbiter.decide([stagehandFront, kugelblitz], frontmostApp: "com.apple.finder", frontmostProcess: 1).holder == 2)
+        #expect(Arbiter.decide([stagehandFront, kugelblitz], frontmostApp: "me.metaebene.stagehand", frontmostProcess: 105).holder == 5)
         // Two that never had it in front: the earlier connection.
         let late = claimant(4, background: true)
         #expect(Arbiter.decide([late, stagehand], frontmostApp: nil, frontmostProcess: nil).holder == 1)

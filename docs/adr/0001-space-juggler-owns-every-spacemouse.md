@@ -37,8 +37,9 @@ SpaceMouse and gives each to exactly one client. The four programs become its cl
 - **Arbitration** (`Arbiter`):
   1. A claim naming the frontmost app beats every background claim. Among those, the frontmost process's own client
      beats a client steering that app from outside, then the earlier connection.
-  2. Otherwise a background claim: whoever last had the SpaceMouse in front, then the earlier connection. A client
-     that never claims a front app (Stagehand) thus always comes last (Tim, 2026-10-14).
+  2. Otherwise a background claim: whoever last had the SpaceMouse in front, then the earlier connection. Stagehand
+     always comes last (Tim, 2026-10-14): it claims its own app (so that "learning" a trigger works while it is in
+     front) and marks its claim `backgroundLast`.
   3. Nobody listens in: input goes to the holder only (Tim, 2026-10-14).
 - **Seizing.** The broker seizes a SpaceMouse while somebody holds it and releases it otherwise.
 - **Protocol.** One JSON object per line (`Wire`), versioned by `Wire.protocolVersion`; public, so other programs may

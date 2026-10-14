@@ -130,7 +130,9 @@ final class Devices {
         let id = Self.identity(serial: serial, transport: found.transport, address: found.address, vendor: found.vendor,
                                product: found.product, location: found.location)
         entries[key] = Entry(info: SpaceMouseDevice(id: id, vendorID: found.vendor, productID: found.product, name: model.name,
-                                                    transport: found.transport, serialNumber: serial),
+                                                    transport: found.transport, serialNumber: serial,
+                                                    bluetoothAddress: found.address.flatMap { $0.isEmpty ? nil : $0 },
+                                                    locationID: found.location),
                              model: model)
         log("device appeared: \(model.name) \(id) (\(found.transport))")
         if wanted { open(key) }

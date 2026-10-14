@@ -29,8 +29,8 @@ public enum Arbiter {
 
     /// 1. A claim naming the frontmost app beats every background claim. Among those, the frontmost process's own
     ///    client beats one that steers the app from outside, then the earlier connection.
-    /// 2. Otherwise a background claim: whoever last had the SpaceMouse in front, then the earlier connection. A
-    ///    client that never had it in front (Stagehand) comes last on its own.
+    /// 2. Otherwise a background claim: one marked `backgroundLast` after all others; then whoever last had the
+    ///    SpaceMouse in front, then the earlier connection.
     public static func decide(_ claimants: [Claimant], frontmostApp: String?, frontmostProcess: Int32?) -> Decision {
         if let frontmostApp {
             let front = claimants.filter { $0.claim.apps.contains(frontmostApp) }
@@ -43,7 +43,9 @@ public enum Arbiter {
         }
         let background = claimants.filter(\.claim.background)
         let winner = background.min { a, b in
-            switch (a.lastFrontUse, b.lastFrontUse) {
+            let aLast = a.claim.backgroundLast ?? false, bLast = b.claim.backgroundLast ?? false
+            if aLast != bLast { return bLast }
+            return switch (a.lastFrontUse, b.lastFrontUse) {
             case let (x?, y?) where x != y: x > y
             case (_?, nil): true
             case (nil, _?): false
