@@ -1,13 +1,13 @@
 #!/bin/zsh
 # Builds Space Juggler.app (ADR-0002): the SpaceJuggler product wrapped into an LSUIElement bundle, signed.
 # Usage: Scripts/build-space-juggler.sh [debug|release] [output directory]
-# Environment: SIGN_IDENTITY (default Apple Development), UNIVERSAL=1 (arm64 + x86_64), TIMESTAMP=1 (for notarization).
+# Environment: SIGN_IDENTITY (default "-", ad hoc; clients pass their own identity), UNIVERSAL=1 (arm64 + x86_64), TIMESTAMP=1 (for notarization).
 # Prints the path of the bundle as its last line. Clients embed it as Contents/Helpers/Space Juggler.app.
 set -euo pipefail
 cd "${0:A:h}/.."
 CONFIG=${1:-debug}
 OUT=${2:-.build/space-juggler}
-IDENTITY=${SIGN_IDENTITY:-"Apple Development: Tim Francis Pritlove (3YZVY5N3EZ)"}
+IDENTITY=${SIGN_IDENTITY:--}
 ARCHS=()
 [[ "${UNIVERSAL:-0}" == 1 ]] && ARCHS=(--arch arm64 --arch x86_64)
 swift build -c "$CONFIG" "${ARCHS[@]}" --product SpaceJuggler >&2
