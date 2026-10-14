@@ -102,6 +102,14 @@ public struct SpaceMouseModel: Sendable, Equatable {
         self == .spaceMousePro ? (.menu, .fit) : (.left, .right)
     }
 
+    /// `held` as a program sees it that only knows two buttons: `.left` and `.right` (`twoButtons`).
+    public func asTwoButtons(_ held: SpaceMouseButtons) -> SpaceMouseButtons {
+        var two: SpaceMouseButtons = []
+        if held.contains(twoButtons.left) { two.insert(.left) }
+        if held.contains(twoButtons.right) { two.insert(.right) }
+        return two
+    }
+
     public static func matching(vendorID: Int, productID: Int) -> SpaceMouseModel? {
         known.first { $0.vendorID == vendorID && $0.productID == productID }
     }

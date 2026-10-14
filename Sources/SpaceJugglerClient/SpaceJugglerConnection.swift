@@ -66,6 +66,22 @@ public final class SpaceJugglerConnection {
     /// The buttons held on all devices together (several SpaceMice act as one, ADR-0003).
     public var heldButtons: SpaceMouseButtons { held.values.reduce([]) { $0.union($1) } }
 
+    /// The same for a program that only knows two buttons, `.left` and `.right`: the Compact's two, the Pro's MENU and
+    /// FIT (`SpaceMouseModel.twoButtons`).
+    public var heldTwoButtons: SpaceMouseButtons {
+        held.reduce([]) { result, entry in
+            guard let model = devices.first(where: { $0.id == entry.key })?.model else { return result }
+            return result.union(model.asTwoButtons(entry.value))
+        }
+    }
+
+    /// Switches the LED of every device that has one (and can light it now).
+    public func setLEDs(_ on: Bool) {
+        for device in devices where device.model?.hasStatusLED == true && !(device.model!.statusLEDNeedsCable && device.isBluetooth) {
+            setLED(on, device: device.id)
+        }
+    }
+
     public func start() {
         guard !running else { return }
         running = true
