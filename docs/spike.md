@@ -72,6 +72,12 @@ Helper 1.4.4 running after a restart, holding both SpaceMice (Space Juggler star
 | Space Juggler.app registering `'++++'` without a name | **helper crashed at once**; registration returned no client ID after ~3 s; restarted with `launchctl kickstart gui/<uid>/com.3dconnexion.helper` |
 | Same with the name "Space Juggler" | registered (4096/4097), activated for a front claim, deactivated when the client left, unregistered when Space Juggler left; helper alive |
 
+## Run 6 — all four apps through 3DxWare at the device, 2026-10-14 (Tim)
+
+Helper 1.4.4 running, Space Juggler 2 in every app. Kugelblitz, REAPER with Space Shuttle, Safari with Space Glider
+and Stagehand in front each get the SpaceMouse through the driver; 3Dconnexion's own apps in front get it through
+their own clients. Tim: "Funktioniert alles."
+
 ## Run 2 — at the device (needs Tim)
 
 1. **Events.** `$SPIKE client --name A --background`, move the cap, press both buttons: axes (every tenth) and button

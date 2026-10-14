@@ -1,6 +1,6 @@
 # ADR-0004: While 3Dconnexion's helper runs, Space Juggler is the driver's one manual client
 
-- Status: accepted (Tim, 2026-10-14); registration and activation measured, input at the device open
+- Status: accepted (Tim, 2026-10-14); checked at the device with all four apps (run 6)
 - Date: 2026-10-14
 - Related: ADR-0001; `docs/3dxware-package.md`; stagehand `docs/spacemouse-findings.md` ("Routing")
 
@@ -53,5 +53,5 @@
   mode), `Devices.driverHolds`; `App/SpaceJuggler.entitlements`.
 - Run 5 (2026-10-14): crash without a name, then with the name registered as client 4096/4097, activated for a front
   claim, deactivated and unregistered; helper alive afterwards.
-- Open at the device: input through the driver in each app, Blender or Trainer in front get the SpaceMouse back, the
-  Pro's buttons through the driver, axis scale.
+- At the device (Tim, 2026-10-14, run 6): input through the driver in each of the four apps; 3Dconnexion's own apps
+  in front get the SpaceMouse back.
