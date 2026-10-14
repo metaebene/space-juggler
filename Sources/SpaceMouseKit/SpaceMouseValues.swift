@@ -4,7 +4,7 @@ import Foundation
 /// Axis signs, seen from the user with the cable at the back (stagehand, docs/spacemouse-findings.md):
 /// slide right x+, slide forward y−, push down z+, tilt forward rx−, tilt right ry−,
 /// twist clockwise seen from above rz+.
-public struct SpaceMouseAxes: Sendable, Equatable, CustomStringConvertible {
+public struct SpaceMouseAxes: Sendable, Equatable, Codable, CustomStringConvertible {
     public var x = 0, y = 0, z = 0
     public var rx = 0, ry = 0, rz = 0
 
@@ -25,7 +25,7 @@ public struct SpaceMouseAxes: Sendable, Equatable, CustomStringConvertible {
 
 /// The buttons held, by what they are, whichever model has them: each model says which bit of its button report is
 /// which (`SpaceMouseModel.buttonBits`).
-public struct SpaceMouseButtons: OptionSet, Sendable, Hashable {
+public struct SpaceMouseButtons: OptionSet, Sendable, Hashable, Codable {
     public let rawValue: UInt32
     public init(rawValue: UInt32) { self.rawValue = rawValue }
     /// The two buttons of the SpaceMouse Compact, the SpaceNavigator and the SpaceMouse Wireless: 1 (left), 2 (right).

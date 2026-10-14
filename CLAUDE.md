@@ -8,9 +8,13 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
 ## Aufbau
 - `Sources/SpaceMouseKit` – Modellkatalog und Report-Dekodierung (Kugelblitz' `SpaceMouseValues.swift` plus Akku,
   Seriennummer, unbekannte Bits und LED-Eigenschaften aus Stagehand), rein.
-- `Sources/SpaceMouseBroker` – `Arbiter` (wer bekommt die SpaceMouse), Protokoll (`Wire`, eine JSON-Zeile je
-  Nachricht über einen Unix-Socket), Socket-Hilfen.
-- `Sources/smk-spike` – Broker und Client in einem Werkzeug; `Scripts/spike-scenario.sh`, Ergebnisse in `docs/spike.md`.
+- `Sources/SpaceJugglerProtocol` – Nachrichten (`Wire.swift`, eine JSON-Zeile je Nachricht über einen Unix-Socket),
+  `BrokerPlace` (Sperre, Socket, Protokoll, `newest.json`), Socket-Hilfen.
+- `Sources/SpaceJugglerCore` – der Broker: `Election`, `Devices` (IOKit), `Arbiter`, `Broker` (Server).
+- `Sources/SpaceJugglerClient` – `SpaceJugglerConnection` für die Apps (verbinden, Broker starten, Anspruch, Ereignisse).
+- `Sources/SpaceJuggler` – die App (Menüleiste); `Scripts/build-space-juggler.sh` baut und signiert `Space Juggler.app`.
+- `Sources/space-juggler-cli` – Status, Test-Clients, Broker ohne Oberfläche; `Scripts/spike-scenario.sh`, Läufe in
+  `docs/spike.md`.
 - Entscheidungen: `docs/adr/`. Hardware-Erkenntnisse stehen noch in Stagehand (`docs/spacemouse-findings.md`).
 
 ## Regeln (ADR-0001 … 0004)
@@ -28,3 +32,4 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
 
 ## Bauen und testen
 - `swift build`, `swift test`; `Scripts/spike-scenario.sh` ergreift eine angeschlossene SpaceMouse für ~20 s.
+- Version: `SpaceJuggler.version` in `Wire.swift` mit jedem Release erhöhen (der neueste Broker gewinnt).

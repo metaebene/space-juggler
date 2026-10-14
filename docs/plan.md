@@ -5,10 +5,10 @@ Each step ends with tests passing and, where it says so, a check by Tim at the d
 1. **Catalog complete** (done 2026-10-14) — `SpaceMouseKit` gets what Stagehand knows beyond Kugelblitz's copy: battery report 0x17,
    serial feature report 0x08 (Wireless), unknown button bits for diagnostics, LED properties per model (has one, needs
    the cable). Tests from both copies.
-2. **Library split** — `SpaceJugglerProtocol` (today `SpaceMouseBroker`: `Wire`, `Arbiter`), `SpaceJugglerClient`
+2. **Library split** (done 2026-10-14) — `SpaceJugglerProtocol` (today `SpaceMouseBroker`: `Wire`, `Arbiter`), `SpaceJugglerClient`
    (connect, start the newest broker through Launch Services, reconnect, claim; events for the app), the broker core
    (devices, identities, fleet, socket server) as a library the app target uses. The spike keeps working on top of it.
-3. **Space Juggler.app** — `LSUIElement` bundle assembled and signed by `Scripts/build-space-juggler.sh`, menu bar item
+3. **Space Juggler.app** (built 2026-10-14; Launch Services and permissions checked, run 3) — `LSUIElement` bundle assembled and signed by `Scripts/build-space-juggler.sh`, menu bar item
    (devices, holder, waiting clients). A minimal host app starts it. **Tim:** permission dialogs and attribution
    (ADR-0002), input at the device, following the frontmost app, a released SpaceMouse (docs/spike.md, run 2).
 4. **Device information and LED** — device list with battery and serial to all clients, LED from any client, on/off

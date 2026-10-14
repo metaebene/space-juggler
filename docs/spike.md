@@ -1,14 +1,16 @@
-# Spike: broker election, handover and seizing (ADR-0001)
+# Spike and test runs: election, handover, seizing, the app (ADR-0001, ADR-0002)
 
-`smk-spike` is broker and client in one command-line tool. `SMK_HOME` moves lock, socket and logs out of
+`space-juggler-cli` (was `smk-spike`) runs test clients and a broker without UI. `SPACE_JUGGLER_HOME` moves lock,
+socket and logs out of
 `~/Library/Application Support/Space Juggler`.
 
 ```
 swift build
-SPIKE="$(swift build --show-bin-path)/smk-spike"
-$SPIKE client --name NAME [--app BUNDLE-ID]... [--background] [--version N] [--seconds S] [--quiet]
+SPIKE="$(swift build --show-bin-path)/space-juggler-cli"
+$SPIKE client --name NAME [--app BUNDLE-ID]... [--background] [--version N] [--seconds S] [--quiet] [--launch-app PATH]
 $SPIKE broker [--version N] [--linger S] [--no-devices]     # normally started by a client
 $SPIKE status
+$SPIKE led DEVICE-ID on|off
 ```
 
 ## Run 1 — automatic, 2026-10-14 (`Scripts/spike-scenario.sh`)
@@ -27,6 +29,26 @@ none of the four apps running. Frontmost app: VS Code.
 
 Also learned: a Unix socket path must stay under 104 bytes. Application Support is fine
 (`/Users/<name>/Library/Application Support/Space Juggler/broker.sock`), a deep scratch directory is not.
+
+## Run 1b — the libraries, two SpaceMice, 2026-10-14
+
+The same scenario on `SpaceJugglerCore`/`SpaceJugglerClient`, with a SpaceNavigator and a SpaceMouse Pro attached
+(identities `port:046d:c626@02110000`, `port:046d:c62b@02130000`): both seized and released together, every step as in
+run 1. After a handover or restart the broker now waits 0.3 s before deciding, so the input no longer flickers to the
+first client that reconnects.
+
+## Run 3 — Space Juggler.app through Launch Services, 2026-10-14
+
+`Scripts/build-space-juggler.sh` (debug, Apple Development), two copies in `HostA.app/Contents/Helpers` and
+`HostB.app/Contents/Helpers`; a test client with `--launch-app` pointing at A.
+
+| Check | Seen |
+|---|---|
+| Client starts the app through Launch Services | yes; first connection after ~1.4 s |
+| `IOHIDCheckAccess(ListenEvent)` in the app | "not determined" (never granted to Space Juggler) |
+| Seizing both SpaceMice without that permission | succeeded, no dialog in the log's path: **Input Monitoring is not needed** for 0x01/0x08 |
+| Second copy (B) started with `open -n` while A runs | started, found A (same version) and left |
+| Idle | released the devices when the client quit, left 10 s later |
 
 ## Run 2 — at the device (needs Tim)
 

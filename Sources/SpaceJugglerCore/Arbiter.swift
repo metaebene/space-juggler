@@ -1,17 +1,4 @@
-/// What a client wants from the broker (ADR-0001).
-public struct Claim: Codable, Sendable, Equatable {
-    /// Bundle IDs of the apps for which the client wants the SpaceMouse while one of them is frontmost: its own app
-    /// (Kugelblitz), the app it lives in (Space Shuttle in REAPER) or the apps it steers (Space Glider).
-    public var apps: [String]
-    /// Whether it also wants the SpaceMouse while none of those apps is frontmost (Stagehand; Kugelblitz with "keep in
-    /// background").
-    public var background: Bool
-
-    public init(apps: [String], background: Bool = false) {
-        self.apps = apps
-        self.background = background
-    }
-}
+import SpaceJugglerProtocol
 
 /// A connected client with its claim, as the broker keeps it.
 public struct Claimant: Sendable, Equatable {
