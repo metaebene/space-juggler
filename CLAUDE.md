@@ -18,7 +18,9 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
 - Entscheidungen: `docs/adr/`. Hardware-Erkenntnisse stehen noch in Stagehand (`docs/spacemouse-findings.md`).
 
 ## Regeln (ADR-0001 … 0004)
-- Nur Space Juggler öffnet eine SpaceMouse (seize); Clients nie (Ausnahme: Treiber-Fall, ADR-0004).
+- Nur Space Juggler öffnet eine SpaceMouse (seize); Clients nie. Läuft der 3Dconnexion-Helper, meldet sich Space
+  Juggler als einziger manueller Treiber-Client an (`'++++'`, **immer mit Namen**, ohne stürzt Helper 1.4.4 ab),
+  aktiviert ihn nur für einen Halter, bedient dann nur Ansprüche für die vordere App (ADR-0004).
 - Space Juggler ist ein `LSUIElement`-Bundle in jeder Client-App (`me.metaebene.SpaceJuggler`), gestartet nur über
   Launch Services, nie als Kindprozess (eigene TCC-Identität, ADR-0002); er liest nur, erzeugt nie Ereignisse.
 - Gerätedaten (Modell, Seriennummer, Akku) und die LED gehen an alle Clients, Eingaben nur an den Halter (ADR-0003).

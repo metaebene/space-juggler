@@ -20,7 +20,7 @@ cp "$BIN/SpaceJuggler" "$APP/Contents/MacOS/SpaceJuggler"
 sed "s/__VERSION__/$VERSION/g" App/Info.plist > "$APP/Contents/Info.plist"
 cp -R App/de.lproj "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/en.lproj"
-SIGN_OPTIONS=(--force --options runtime --sign "$IDENTITY")
+SIGN_OPTIONS=(--force --options runtime --entitlements App/SpaceJuggler.entitlements --sign "$IDENTITY")
 [[ "${TIMESTAMP:-0}" == 1 ]] && SIGN_OPTIONS+=(--timestamp)
 codesign "${SIGN_OPTIONS[@]}" "$APP"
 codesign --verify --strict "$APP"

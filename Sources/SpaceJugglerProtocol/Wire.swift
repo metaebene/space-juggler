@@ -5,7 +5,7 @@ import Foundation
 public enum SpaceJuggler {
     /// Version of the broker built from this package. A running broker hands over only to a higher one; a client
     /// that meets a lower one starts its own. Raise it with every release of the package.
-    public static let version = 1
+    public static let version = 2
     /// Raised with every change of the messages that an older peer cannot read.
     public static let protocolVersion = 1
     public static let bundleIdentifier = "me.metaebene.SpaceJuggler"
@@ -50,7 +50,7 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
     public var charging: Bool?
     /// Turned on in Space Juggler's menu; input of a device that is off reaches nobody.
     public var enabled: Bool
-    /// "open", "closed" or why it could not be opened.
+    /// "open", "closed", "driver" (3Dconnexion's helper holds it, ADR-0004) or why it could not be opened.
     public var state: String
     /// The LED as last written (the device does not report it); nil = unknown.
     public var led: Bool?
@@ -145,6 +145,8 @@ public struct BrokerStatus: Codable, Sendable, Equatable {
     public var frontmostApp: String?
     public var devices: [SpaceMouseDevice]
     public var clients: [Client]
+    /// Space Juggler goes through 3Dconnexion's driver, whose helper holds the devices (ADR-0004); nil = no.
+    public var driver: Bool?
 
     public init(version: Int, processID: Int32, frontmostApp: String?, devices: [SpaceMouseDevice], clients: [Client]) {
         self.version = version

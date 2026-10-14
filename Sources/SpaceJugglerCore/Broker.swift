@@ -33,7 +33,10 @@ public final class Broker {
     private var startedAt = Date()
     private var settlePending = false
     private static let settleTime: TimeInterval = 0.3
-    private var observer: NSObjectProtocol?
+    private var observers: [NSObjectProtocol] = []
+    /// 3Dconnexion's helper runs and holds the SpaceMice: Space Juggler goes through the driver (ADR-0004).
+    private var driverMode = false
+    private let driver = DriverClient()
 
     /// Something the menu shows changed: devices, clients, holder.
     public var onChange: () -> Void = {}
@@ -79,22 +82,68 @@ public final class Broker {
             for client in clients.values where client.greeted { client.connection.send(.devices(list)) }
             onChange()
         }
-        if usesDevices { devices.start() }
+        driver.log = { [weak self] in self?.say($0) }
+        driver.onAxes = { [weak self] axes in
+            guard let self, let device = driverDevice else { return }
+            toHolder(.axes(device: device.id, axes: axes))
+        }
+        driver.onButtons = { [weak self] bits in
+            guard let self, let device = driverDevice else { return }
+            // The driver's bitmap in the device's numbering, named by the model of the device it is put down to.
+            let held = device.model?.buttons(UInt64(bits)) ?? []
+            toHolder(.buttons(device: device.id, held: held))
+        }
+        if usesDevices {
+            updateDriverMode()
+            devices.start()
+        }
 
-        observer = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
-        ) { [weak self] _ in MainActor.assumeIsolated { self?.arbitrate() } }
+        let center = NSWorkspace.shared.notificationCenter
+        observers.append(center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.arbitrate() }
+        })
+        // The helper comes and goes (login, its own updates, quit by the user).
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                guard app?.bundleIdentifier == DriverClient.helperBundleID else { return }
+                MainActor.assumeIsolated { self?.updateDriverMode() }
+            })
+        }
         scheduleLingerIfIdle()
     }
 
     // MARK: - For the menu
 
     public var status: BrokerStatus {
-        BrokerStatus(
+        var status = BrokerStatus(
             version: version, processID: getpid(), frontmostApp: frontmost.app, devices: devices.list,
             clients: clients.compactMap { id, client in
                 client.claimant.map { .init(id: id, name: client.name, processID: $0.processID, claim: $0.claim, holds: id == holder) }
             }.sorted { $0.id < $1.id })
+        status.driver = driverMode
+        return status
+    }
+
+    /// The device the driver's input is put down to: the driver merges every SpaceMouse and does not say which one
+    /// moved, so the first one that is on (ADR-0004).
+    private var driverDevice: SpaceMouseDevice? { devices.list.first { $0.enabled } }
+
+    /// Through the driver while its helper runs, seized otherwise (ADR-0004). Never kills or starts the helper.
+    private func updateDriverMode() {
+        let runs = DriverClient.helperRuns
+        guard runs != driverMode else { return }
+        driverMode = runs
+        devices.driverHolds = runs
+        say(runs ? "3Dconnexion helper runs: through the driver" : "3Dconnexion helper gone: seizing again")
+        if runs {
+            devices.want(false)
+            driver.start()
+        } else {
+            driver.stop()
+        }
+        arbitrate()
+        devices.onChange()
     }
 
     public func isEnabled(_ device: String) -> Bool {
@@ -149,7 +198,12 @@ public final class Broker {
             arbitrate()
             onChange()
         case .setLED(let device, let on):
-            if let failure = devices.setLED(on, device: device) { say("LED \(device) for \(clients[id]?.name ?? "?"): \(failure)") }
+            if driverMode {
+                // Through the driver ('3dsl'); the Compact ignores it (stagehand findings).
+                driver.setLED(on)
+            } else if let failure = devices.setLED(on, device: device) {
+                say("LED \(device) for \(clients[id]?.name ?? "?"): \(failure)")
+            }
         case .status:
             connection.send(.status(status))
         case .takeOver(let candidate):
@@ -199,9 +253,14 @@ public final class Broker {
         }
         arbitrations += 1
         let front = frontmost
-        let decision = Arbiter.decide(clients.values.compactMap(\.claimant), frontmostApp: front.app, frontmostProcess: front.process)
+        var claimants = clients.values.compactMap(\.claimant)
+        // Through the driver only claims for the frontmost app count: in the background Space Juggler would take the
+        // driver's data from every other app in front, including those with their own support (ADR-0004).
+        if driverMode { claimants = claimants.map { var c = $0; c.claim.background = false; return c } }
+        let decision = Arbiter.decide(claimants, frontmostApp: front.app, frontmostProcess: front.process)
         if decision.throughFront, let id = decision.holder { clients[id]?.claimant?.lastFrontUse = arbitrations }
-        devices.want(decision.holder != nil)
+        devices.want(decision.holder != nil && !driverMode)
+        driver.want(decision.holder != nil && driverMode)
         guard decision.holder != holder else { return }
         if let old = holder { clients[old]?.connection.send(.holding(false)) }
         holder = decision.holder
@@ -218,9 +277,10 @@ public final class Broker {
         say(reason)
         leaving = true
         devices.stop()
+        driver.stop()
         acceptSource?.cancel()
         Darwin.close(listenFD)
-        if let observer { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         for client in clients.values { client.connection.close() }
         onLeave()
     }

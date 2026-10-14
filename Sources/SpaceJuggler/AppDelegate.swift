@@ -76,6 +76,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
+        if status.driver == true {
+            menu.addItem(disabled(String(localized: "Through the 3Dconnexion driver")))
+        }
+
         menu.addItem(.separator())
         if let holder = status.clients.first(where: \.holds) {
             menu.addItem(disabled(String(localized: "In use by \(holder.name)")))

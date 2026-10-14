@@ -19,7 +19,8 @@
 ## Decision
 
 - Space Juggler is an app bundle `Space Juggler.app`, bundle ID `me.metaebene.SpaceJuggler`, `LSUIElement`, hardened
-  runtime, signed by the client's team, no entitlements. Every client embeds it (`Contents/Helpers/`); Space Shuttle's
+  runtime, signed by the client's team; its one entitlement, `disable-library-validation`, lets it load 3Dconnexion's
+  client framework (ADR-0004). Every client embeds it (`Contents/Helpers/`); Space Shuttle's
   installer puts it next to the extension.
 - A client starts it through Launch Services (`NSWorkspace.openApplication`, not activating, with
   `createsNewApplicationInstance`, because an older copy with the same bundle ID may be running and must be taken over),

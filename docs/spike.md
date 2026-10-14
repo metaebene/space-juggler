@@ -62,6 +62,16 @@ development REAPER.
 - Background: Kugelblitz with "Auch im Hintergrund behalten" keeps it while another app without a claim is in front,
   ahead of Stagehand. Works.
 
+## Run 5 — through 3DxWare 10.8.13, 2026-10-14
+
+Helper 1.4.4 running after a restart, holding both SpaceMice (Space Juggler started by Stagehand at login: `busy`).
+
+| Check | Seen |
+|---|---|
+| `spacemouse-probe client --signature '++++' --name … --activate` | registered (client 4096), activated; helper alive |
+| Space Juggler.app registering `'++++'` without a name | **helper crashed at once**; registration returned no client ID after ~3 s; restarted with `launchctl kickstart gui/<uid>/com.3dconnexion.helper` |
+| Same with the name "Space Juggler" | registered (4096/4097), activated for a front claim, deactivated when the client left, unregistered when Space Juggler left; helper alive |
+
 ## Run 2 — at the device (needs Tim)
 
 1. **Events.** `$SPIKE client --name A --background`, move the cap, press both buttons: axes (every tenth) and button

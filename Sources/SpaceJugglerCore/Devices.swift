@@ -26,11 +26,14 @@ final class Devices {
     /// By registry ID of the manager's device object.
     private var entries: [UInt64: Entry] = [:]
     private var wanted = false
+    /// 3Dconnexion's helper holds the devices; they are reported as "driver" (ADR-0004).
+    var driverHolds = false
 
     var list: [SpaceMouseDevice] {
         entries.values.map { entry in
             var info = entry.info
             info.enabled = isEnabled(info.id)
+            if driverHolds, info.state != "open" { info.state = "driver" }
             return info
         }.sorted { $0.id < $1.id }
     }

@@ -13,7 +13,7 @@ Each step ends with tests passing and, where it says so, a check by Tim at the d
    (ADR-0002), input at the device, following the frontmost app, a released SpaceMouse (docs/spike.md, run 2).
 4. **Device information and LED** — device list with battery and serial to all clients, LED from any client, on/off
    per device in the menu (ADR-0003). **Tim:** two SpaceMice, the Wireless on both transports.
-5. **3DxWare** — `driver` state when the classic helper holds the device (ADR-0004). **Tim:** with the classic helper,
+5. **3DxWare** (built 2026-10-14, ADR-0004; registration measured, run 5) — `driver` state when the classic helper holds the device (ADR-0004). **Tim:** with the classic helper,
    with the DriverKit edition.
 6. **Clients, one after another**, each with its accepted ADR and its own copy of `SpaceMouseKit` removed:
    Space Shuttle (smallest; gets every model), Kugelblitz (claim = own app, background setting; its fleet moves into
