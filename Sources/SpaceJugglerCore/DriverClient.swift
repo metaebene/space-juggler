@@ -40,9 +40,11 @@ final class DriverClient {
 
     var isRegistered: Bool { clientID != 0 }
 
-    /// Whether 3Dconnexion's helper runs, which then holds every SpaceMouse.
-    nonisolated static var helperRuns: Bool {
-        !NSRunningApplication.runningApplications(withBundleIdentifier: helperBundleID).isEmpty
+    /// Whether 3Dconnexion's helper runs, which then holds every SpaceMouse. From NSWorkspace's list, the one the
+    /// broker observes: `NSRunningApplication.runningApplications(withBundleIdentifier:)` missed the helper for seconds
+    /// after it had appeared in that list (measured 2026-10-15), and no later change of the list corrected it.
+    @MainActor static var helperRuns: Bool {
+        NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == helperBundleID && !$0.isTerminated }
     }
 
     func start() {

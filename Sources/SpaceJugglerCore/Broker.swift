@@ -34,6 +34,7 @@ public final class Broker {
     private var settlePending = false
     private static let settleTime: TimeInterval = 0.3
     private var observers: [NSObjectProtocol] = []
+    private var helperWatch: NSKeyValueObservation?
     /// 3Dconnexion's helper runs and holds the SpaceMice: Space Juggler goes through the driver (ADR-0004).
     private var driverMode = false
     private let driver = DriverClient()
@@ -102,13 +103,11 @@ public final class Broker {
         observers.append(center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.arbitrate() }
         })
-        // The helper comes and goes (login, its own updates, quit by the user).
-        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
-            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
-                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-                guard app?.bundleIdentifier == DriverClient.helperBundleID else { return }
-                MainActor.assumeIsolated { self?.updateDriverMode() }
-            })
+        // The helper comes and goes (login, its own updates, quit by the user). It is an `LSUIElement` app, for which
+        // NSWorkspace posts neither didLaunch nor didTerminate (quitting it went unnoticed, 2026-10-15); the list of
+        // running apps covers every app and changes on the main run loop.
+        helperWatch = NSWorkspace.shared.observe(\.runningApplications) { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.updateDriverMode() }
         }
         scheduleLingerIfIdle()
     }
@@ -281,6 +280,7 @@ public final class Broker {
         acceptSource?.cancel()
         Darwin.close(listenFD)
         for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        helperWatch = nil
         for client in clients.values { client.connection.close() }
         onLeave()
     }
