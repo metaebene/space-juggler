@@ -44,5 +44,5 @@
 
 - Spike: identity `port:046d:c626@02110000` for the SpaceNavigator (2026-10-14).
 - Open: two devices at once, the Wireless's serial on both transports, on/off in the menu, the LED written for a client.
-- Open: report 0x08 as an identity for the Compact (filled, another format) and the SpaceNavigator (empty);
-  `docs/serial-report.md`.
+- Report 0x08 is the Compact's serial number too (differs between two devices; Tim, 2026-10-15): a Compact is
+  `serial:…`. Empty on two SpaceNavigators and the SpaceMouse Pro, which stay at model + USB port; `docs/serial-report.md`.

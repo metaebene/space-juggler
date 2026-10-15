@@ -65,7 +65,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             menu.addItem(.sectionHeader(title: String(localized: "SpaceMouse")))
             for device in status.devices {
-                var title = "\(device.name) (\(device.transport))"
+                // The printed serial number tells two of one model apart (ADR-0003); models without one show none.
+                var title = device.name
+                if let serial = device.serialNumber { title += " \(serial)" }
+                title += " (\(device.transport))"
                 if let battery = device.battery { title += " – \(battery) %" }
                 let item = NSMenuItem(title: title, action: #selector(toggleDevice(_:)), keyEquivalent: "")
                 item.target = self

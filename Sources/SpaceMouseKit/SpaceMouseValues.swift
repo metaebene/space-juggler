@@ -92,9 +92,13 @@ public struct SpaceMouseModel: Sendable, Equatable {
     /// (stagehand ADR-0091, seen at the device).
     public var statusLEDNeedsCable: Bool { self == .spaceMouseWireless }
 
-    /// The vendor feature report that carries the printed serial number, for the models whose HID device has none on
-    /// any transport (stagehand ADR-0092). The only feature report ever read, and only with GET.
-    public var serialFeatureReportID: UInt8? { self == .spaceMouseWireless ? SpaceMouseReport.serialReportID : nil }
+    /// The vendor feature report that carries the serial number, for the models whose HID device has none on any
+    /// transport: the Wireless (printed on its label, stagehand ADR-0092) and the Compact (different on two devices,
+    /// taken as its serial number, docs/serial-report.md). The SpaceNavigator and the SpaceMouse Pro declare it too, but
+    /// leave it empty. The only feature report ever read, and only with GET.
+    public var serialFeatureReportID: UInt8? {
+        self == .spaceMouseWireless || self == .compact ? SpaceMouseReport.serialReportID : nil
+    }
 
     /// The two buttons a program uses that only knows two: the Compact's left and right, the Pro's MENU and FIT
     /// (Space Glider ADR-0025).
@@ -136,7 +140,7 @@ public enum SpaceMouseReport {
     public static let buttonReportID: UInt8 = 3
     /// The SpaceMouse Wireless's battery (`17 <percent> <flags>`, stagehand ADR-0090).
     public static let batteryReportID: UInt8 = 0x17
-    /// Vendor feature report with the printed serial number of the SpaceMouse Wireless (stagehand ADR-0092).
+    /// Vendor feature report with the serial number of the SpaceMouse Wireless and the Compact (`serialFeatureReportID`).
     public static let serialReportID: UInt8 = 0x08
 
     /// The bitmap of report 3 in the device's numbering (its first 64 bits); nil for other reports.
@@ -167,15 +171,17 @@ public enum SpaceMouseReport {
         return (Int(bytes[1]), bytes.count >= 3 && bytes[2] & 1 != 0)
     }
 
-    /// The printed serial number from the serial feature report as IOKit hands it over (`08 5a 00 01 2b 7c 17 53` =
-    /// "Z5024520019", stagehand ADR-0092): a letter, then six bytes as one big-endian number in decimal. Nil for
-    /// anything else and for an all-zero number.
+    /// The serial number from the serial feature report as IOKit hands it over: a letter, then six bytes as one
+    /// big-endian number in decimal (Wireless `08 5a 00 01 2b 7c 17 53` = "Z5024520019" as on its label, stagehand
+    /// ADR-0092); when the second byte is a letter too, two letters and five bytes (a Compact's `08 53 53 01 01 62 5f ac`
+    /// = "SS4318191532", docs/serial-report.md). Nil for anything else and for an all-zero number.
     public static func serialNumber(_ bytes: [UInt8]) -> String? {
-        guard bytes.count >= 8, bytes[0] == serialReportID,
-              (0x41...0x5A).contains(bytes[1]) || (0x61...0x7A).contains(bytes[1]) else { return nil }
-        let number = bytes[2...7].reduce(UInt64(0)) { $0 << 8 | UInt64($1) }
+        func isLetter(_ byte: UInt8) -> Bool { (0x41...0x5A).contains(byte) || (0x61...0x7A).contains(byte) }
+        guard bytes.count >= 8, bytes[0] == serialReportID, isLetter(bytes[1]) else { return nil }
+        let letters = isLetter(bytes[2]) ? 2 : 1
+        let number = bytes[(1 + letters)...7].reduce(UInt64(0)) { $0 << 8 | UInt64($1) }
         guard number > 0 else { return nil }
-        return "\(Character(Unicode.Scalar(bytes[1])))\(number)"
+        return String(decoding: bytes[1...letters], as: UTF8.self) + "\(number)"
     }
 
     /// Report 1 sets x y z (all six when it carries twelve bytes, as on the SpaceMouse Wireless), report 2 sets

@@ -1,10 +1,12 @@
 import Foundation
 import IOKit.hid
+import IOUSBHost
 import SpaceJugglerProtocol
 
 /// Every attached SpaceMouse of a known model (ADR-0001, ADR-0003). Opened seized only while `wanted`; own device
 /// object by registry ID (never configure the manager's), report buffer alive until the cancel handler ran, the only
-/// writes are output report 4 (LED) and the only feature report read is the serial number (GET). Main queue only.
+/// writes are output report 4 (LED) and the only feature report read is the serial number (GET, through the HID device
+/// or, on USB, the control pipe). Main queue only.
 @MainActor
 final class Devices {
     private struct Entry {
@@ -121,9 +123,11 @@ final class Devices {
         guard found.usbSerial == nil, let reportID = model.serialFeatureReportID else {
             return register(key, model: model, found: found, serial: found.usbSerial)
         }
-        // The printed serial number (ADR-0003): a GET takes a round trip over Bluetooth, so off the main queue.
+        // The serial number (ADR-0003): a GET takes a round trip over Bluetooth, so off the main queue.
+        let usb = found.transport.caseInsensitiveCompare("USB") == .orderedSame
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let serial = Self.readSerialNumber(key, reportID: reportID)
+                ?? (usb ? Self.readSerialNumberOverControlPipe(location: found.location, reportID: reportID) : nil)
             Task { @MainActor in self?.register(key, model: model, found: found, serial: serial) }
         }
     }
@@ -163,6 +167,29 @@ final class Devices {
             return nil
         }
         return SpaceMouseReport.serialNumber(Array(buffer.prefix(Int(length))))
+    }
+
+    /// The same GET as a USB class request on the default pipe, for a device someone else holds (3Dconnexion's helper
+    /// seizes every SpaceMouse, so opening its HID device fails): nothing is opened or written.
+    private nonisolated static func readSerialNumberOverControlPipe(location: Int, reportID: UInt8) -> String? {
+        let matching = IOServiceMatching("IOUSBHostDevice") as NSMutableDictionary
+        matching[kIOPropertyMatchKey] = ["locationID": location]
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, matching)
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+        guard let usb = try? IOUSBHostDevice(__ioService: service, options: [], queue: nil, interestHandler: nil) else {
+            return nil
+        }
+        defer { usb.destroy() }
+        var request = IOUSBDeviceRequest()
+        request.bmRequestType = 0xA1                        // class request to interface 0, device to host
+        request.bRequest = 0x01                             // GET_REPORT
+        request.wValue = 0x0300 | UInt16(reportID)          // feature report
+        request.wLength = 8
+        let data = NSMutableData(length: 8)!
+        var count = 0
+        guard (try? usb.__send(request, data: data, bytesTransferred: &count, completionTimeout: 1)) != nil else { return nil }
+        return SpaceMouseReport.serialNumber([UInt8](Data(referencing: data).prefix(count)))
     }
 
     private func vanished(_ managed: IOHIDDevice) {

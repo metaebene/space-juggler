@@ -95,7 +95,19 @@ struct SpaceMouseReportExtrasTests {
         #expect(SpaceMouseReport.serialNumber([0x09, 0x5A, 0x00, 0x01, 0x2B, 0x7C, 0x17, 0x53]) == nil)
         #expect(SpaceMouseReport.serialNumber([0x08, 0x5A]) == nil)
         #expect(SpaceMouseModel.spaceMouseWireless.serialFeatureReportID == 0x08)
-        #expect(SpaceMouseModel.compact.serialFeatureReportID == nil)
+        #expect(SpaceMouseModel.compact.serialFeatureReportID == 0x08)
+        #expect(SpaceMouseModel.spaceNavigator.serialFeatureReportID == nil)
+        #expect(SpaceMouseModel.spaceMousePro.serialFeatureReportID == nil)
+    }
+
+    /// Two Compacts, read at the devices (2026-10-15, docs/serial-report.md); no label to compare.
+    @Test func compactSerialNumberReport() {
+        #expect(SpaceMouseReport.serialNumber([0x08, 0x53, 0x53, 0x01, 0x01, 0x62, 0x5F, 0xAC]) == "SS4318191532")
+        #expect(SpaceMouseReport.serialNumber([0x08, 0x53, 0x00, 0x01, 0x01, 0x90, 0x4F, 0xE5]) == "S4321202149")
+        // What the SpaceNavigator and the SpaceMouse Pro hold.
+        #expect(SpaceMouseReport.serialNumber([0x08, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]) == nil)
+        #expect(SpaceMouseReport.serialNumber([0x08, 0, 0, 0, 0, 0, 0, 0]) == nil)
+        #expect(SpaceMouseReport.serialNumber([0x08, 0x53, 0x53, 0, 0, 0, 0, 0]) == nil)
     }
 
     @Test func unknownBits() {
