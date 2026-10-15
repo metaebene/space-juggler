@@ -7,6 +7,8 @@ let package = Package(
     products: [
         // Model catalog and report decoding, usable on their own (ADR-0001).
         .library(name: "SpaceMouseKit", targets: ["SpaceMouseKit"]),
+        // SwiftUI drawing of a SpaceMouse and its cap (from Stagehand's virtual remote).
+        .library(name: "SpaceMouseKitUI", targets: ["SpaceMouseKitUI"]),
         // What a program links to get the SpaceMouse through Space Juggler (ADR-0001, ADR-0002).
         .library(name: "SpaceJugglerClient", targets: ["SpaceJugglerClient"]),
         // The broker; wrapped into Space Juggler.app by Scripts/build-space-juggler.sh (ADR-0002).
@@ -16,6 +18,7 @@ let package = Package(
     targets: [
         // Models, reports, the 3DxWare client API's device state; pure, no IOKit.
         .target(name: "SpaceMouseKit"),
+        .target(name: "SpaceMouseKitUI", dependencies: ["SpaceMouseKit"]),
         // What broker and clients share: messages, places, sockets (ADR-0001).
         .target(name: "SpaceJugglerProtocol", dependencies: ["SpaceMouseKit"]),
         // The broker itself: election, devices, arbitration, server. Used by the app and the CLI.
