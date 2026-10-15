@@ -78,6 +78,9 @@ every 256F device as 6DoF unless blacklisted and drops interfaces without axes.
 - **Vendor feature reports** on page 0xFF00, 8-bit fields: 0x05–0x07 (1 B), 0x08–0x0A (7 B), 0x0B (1 B), 0x13 (1 B),
   0x19 (4 B, newer SpaceNavigator firmware, C62E), 0x1A (7 B, C62E), 0x14/0x15 (Pro). No public description of any of
   them. **0x08 as serial number is our finding** (docs/serial-report.md); nobody else documents it.
+- **Feature reports read at a Compact** (256F:C635, fw 1079, `space-juggler-cli describe`, 2026-10-15): 0x06 `06 03`,
+  0x08 the serial number, 0x09 `09 80 78 79 82 81 7e 7f` and 0x0A `0a ba be bb b8 bc c2 bf` (seven values each, near
+  128 and near 190: per-axis calibration?), 0x13 `13 1a`, 0x1A all zero; GET fails for 0x05, 0x07, 0x0B and 0x19.
 - **USB serial string:** none on any real device found (iSerialNumber 0), on any model. Over Bluetooth the C63A has its
   Bluetooth address as the unique ID.
 - **Axis orientation:** spacenavd swaps and negates y/z for all 256F devices and for 046D C605, C621, C623, C625–C62B,

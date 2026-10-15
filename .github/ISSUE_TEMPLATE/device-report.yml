@@ -1,0 +1,29 @@
+name: Device report
+description: What SpaceMouse Probe found out about your SpaceMouse (docs/adr/0006).
+title: "Device report: "
+labels: ["device report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! SpaceMouse Probe has put its report on your clipboard; if the field below is empty, paste it there.
+        The report contains what your device declares and sends, what you typed in the probe, and its serial number.
+  - type: input
+    id: model
+    attributes:
+      label: Model, as printed on the device
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Report
+      description: The JSON from SpaceMouse Probe.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Receiver or cable, what worked and what did not.

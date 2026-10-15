@@ -1,0 +1,28 @@
+#!/bin/zsh
+# Builds SpaceMouse Probe.app (ADR-0006): the SpaceMouseProbe product as an app bundle with Space Juggler.app inside
+# (Contents/Helpers, ADR-0002), both signed.
+# Usage: Scripts/build-spacemouse-probe.sh [debug|release] [output directory]
+# Environment as for build-space-juggler.sh: SIGN_IDENTITY (default "-", ad hoc), UNIVERSAL=1, TIMESTAMP=1.
+# Prints the path of the bundle as its last line.
+set -euo pipefail
+cd "${0:A:h}/.."
+CONFIG=${1:-debug}
+OUT=${2:-.build/spacemouse-probe}
+IDENTITY=${SIGN_IDENTITY:--}
+ARCHS=()
+[[ "${UNIVERSAL:-0}" == 1 ]] && ARCHS=(--arch arm64 --arch x86_64)
+swift build -c "$CONFIG" "${ARCHS[@]}" --product SpaceMouseProbe >&2
+BIN="$(swift build -c "$CONFIG" "${ARCHS[@]}" --show-bin-path)"
+VERSION=$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' Sources/SpaceJugglerProtocol/Wire.swift)
+APP="$OUT/SpaceMouse Probe.app"
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Helpers"
+cp "$BIN/SpaceMouseProbe" "$APP/Contents/MacOS/SpaceMouseProbe"
+sed "s/__VERSION__/$VERSION/g" App/Probe/Info.plist > "$APP/Contents/Info.plist"
+JUGGLER=$(Scripts/build-space-juggler.sh "$CONFIG" "$APP/Contents/Helpers" | tail -1)
+SIGN_OPTIONS=(--force --options runtime --sign "$IDENTITY")
+[[ "${TIMESTAMP:-0}" == 1 ]] && SIGN_OPTIONS+=(--timestamp)
+codesign "${SIGN_OPTIONS[@]}" "$APP"
+codesign --verify --strict --deep "$APP"
+echo "Built SpaceMouse Probe $VERSION ($CONFIG${UNIVERSAL:+, universal}) with $JUGGLER" >&2
+echo "$APP"

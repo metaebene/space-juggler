@@ -14,6 +14,8 @@ let package = Package(
         // The broker; wrapped into Space Juggler.app by Scripts/build-space-juggler.sh (ADR-0002).
         .executable(name: "SpaceJuggler", targets: ["SpaceJuggler"]),
         .executable(name: "space-juggler-cli", targets: ["space-juggler-cli"]),
+        // SpaceMouse Probe: asks at a device until its model is known (ADR-0006); Scripts/build-spacemouse-probe.sh.
+        .executable(name: "SpaceMouseProbe", targets: ["SpaceMouseProbe"]),
     ],
     targets: [
         // Models, reports, the 3DxWare client API's device state; pure, no IOKit.
@@ -29,7 +31,9 @@ let package = Package(
         .executableTarget(name: "SpaceJuggler", dependencies: ["SpaceJugglerCore"]),
         // Status, test clients and a broker without UI, for tests and diagnosis (docs/spike.md).
         .executableTarget(name: "space-juggler-cli", dependencies: ["SpaceJugglerCore", "SpaceJugglerClient"]),
+        .executableTarget(name: "SpaceMouseProbe", dependencies: ["SpaceJugglerClient", "SpaceMouseKitUI"]),
         .testTarget(name: "SpaceMouseKitTests", dependencies: ["SpaceMouseKit"]),
         .testTarget(name: "SpaceJugglerTests", dependencies: ["SpaceJugglerCore", "SpaceJugglerClient"]),
+        .testTarget(name: "SpaceMouseProbeTests", dependencies: ["SpaceMouseProbe", "SpaceJugglerClient"]),
     ]
 )

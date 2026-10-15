@@ -12,9 +12,12 @@ Every client app carries Space Juggler inside its bundle and starts it when need
 updating any one app brings new device support to all of them. Nothing extra to install. With 3Dconnexion's driver
 running, Space Juggler becomes the driver's one client and hands the device back to the driver's own apps in front.
 
-The package also contains **SpaceMouseKit**, the model catalog and report decoding, usable on its own.
+The package also contains **SpaceMouseKit**, the model catalog and report decoding, usable on its own, and
+**SpaceMouse Probe**, a small app that finds out what a SpaceMouse model sends (see below).
 
 ## Supported devices
+
+Checked at a device:
 
 | Model | Vendor:Product | Buttons |
 |---|---|---|
@@ -22,6 +25,31 @@ The package also contains **SpaceMouseKit**, the model catalog and report decodi
 | SpaceNavigator | 046D:C626 | 2 |
 | SpaceMouse Pro | 046D:C62B | 15 |
 | SpaceMouse Wireless (Bluetooth and on its cable) | 256F:C63A | 2 |
+
+**Not yet checked** — known from public sources only ([docs/models.md](docs/models.md)); they should work, but nobody
+here has seen them do so:
+
+| Model | Vendor:Product | Buttons |
+|---|---|---|
+| SpaceNavigator for Notebooks | 046D:C628 | 2 |
+| SpaceExplorer | 046D:C627 | 15 |
+| SpacePilot | 046D:C625 | 21 |
+| SpacePilot Pro | 046D:C629 | 31 |
+| SpaceMouse Wireless (2013, cable / receiver) | 256F:C62E / C62F | 2 |
+| SpaceMouse Pro Wireless (cable / receiver / Bluetooth Edition) | 256F:C631 / C632 / C638 | 15 |
+| SpaceMouse Enterprise | 256F:C633 | 31 |
+| SpaceMouse Wireless and Pro Wireless through the Universal Receiver | 256F:C652 | 2 / 15 |
+
+Any other SpaceMouse (a Multi-axis Controller of Logitech or 3Dconnexion) is taken as well: its axes from what it
+declares, its keys guessed.
+
+## Help: run SpaceMouse Probe
+
+If you have a SpaceMouse that is not in the first table, **SpaceMouse Probe** asks you to press every key and move the
+cap every way, and writes down what the device sends. It opens a GitHub issue with the report (or saves it as a file);
+that is how a model becomes checked. Build it with `Scripts/build-spacemouse-probe.sh` (a signed download will follow
+with a release). It never changes your device except for switching its LED when you ask, and works next to
+3Dconnexion's driver (for keys and axes, quit 3Dconnexion's helper while it runs).
 
 ## Using it in an app
 
@@ -53,13 +81,16 @@ starts it through Launch Services when nobody answers.
 
 ## Parts
 
-- `SpaceMouseKit` — models (IDs, buttons per model, LED, battery, serial number), input reports, the device state of
-  3Dconnexion's classic client API.
+- `SpaceMouseKit` — models (IDs, buttons per model, LED, battery, serial number, how each is known), input reports,
+  report descriptors, the device state of 3Dconnexion's classic client API.
+- `SpaceMouseKitUI` — a SwiftUI drawing of a SpaceMouse and its cap's twelve directions.
 - `SpaceJugglerProtocol` — the messages between Space Juggler and its clients (one JSON object per line over a Unix
   socket in `~/Library/Application Support/Space Juggler`), versioned.
 - `SpaceJugglerClient` — what an app links.
 - `SpaceJugglerCore`, `SpaceJuggler` — the broker and its menu bar app.
-- `space-juggler-cli` — status, test clients and a broker without UI.
+- `space-juggler-cli` — status, test clients (`--raw` prints every input report), `describe` (report descriptor and
+  feature reports of a device) and a broker without UI.
+- `SpaceMouseProbe` — the probe app (ADR-0006).
 
 Design decisions: [docs/adr](docs/adr/README.md). Test runs: [docs/spike.md](docs/spike.md).
 
