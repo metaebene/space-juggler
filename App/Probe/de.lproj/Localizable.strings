@@ -1,0 +1,131 @@
+/* SpaceMouse Probe, German (ADR-0006). Keys are the English texts. */
+
+/* Devices */
+"No SpaceMouse" = "Keine SpaceMouse";
+"Connect a SpaceMouse by cable, receiver or Bluetooth." = "Schließe eine SpaceMouse per Kabel, Empfänger oder Bluetooth an.";
+"SpaceMouse Probe guides you through every key and every movement of your SpaceMouse and writes down what it sends, so that Space Juggler can support it." = "SpaceMouse Probe führt dich durch jede Taste und jede Bewegung deiner SpaceMouse und schreibt auf, was sie sendet, damit Space Juggler sie unterstützen kann.";
+"Not tested yet" = "Noch nicht getestet";
+"Report created" = "Bericht erstellt";
+"Step %lld of %lld" = "Schritt %lld von %lld";
+"An older Space Juggler is running; it hands over to the probe's in a moment." = "Ein älterer Space Juggler läuft; er übergibt gleich an den der Probe.";
+"Space Juggler could not be reached" = "Space Juggler ist nicht erreichbar";
+
+/* Steps */
+"Start" = "Start";
+"Device" = "Gerät";
+"Keys" = "Tasten";
+"Cap" = "Kappe";
+"LED" = "LED";
+"Label" = "Etikett";
+"Check" = "Prüfen";
+"Report" = "Bericht";
+"Back" = "Zurück";
+"Continue" = "Weiter";
+"Create Report" = "Bericht erstellen";
+"Keep this window in front" = "Dieses Fenster vorne lassen";
+"3Dconnexion's driver holds the SpaceMouse" = "Der Treiber von 3Dconnexion hält die SpaceMouse";
+
+/* Start */
+"Space Juggler knows this model, checked at a device. A report still helps if anything differs." = "Space Juggler kennt dieses Modell, an einem Gerät geprüft. Ein Bericht hilft trotzdem, falls etwas abweicht.";
+"Space Juggler knows this model from public sources only. Your report makes it a checked one." = "Space Juggler kennt dieses Modell nur aus öffentlichen Quellen. Dein Bericht macht es zu einem geprüften.";
+"Space Juggler does not know this model yet. Your report teaches it." = "Space Juggler kennt dieses Modell noch nicht. Dein Bericht bringt es ihm bei.";
+"The Space Juggler running is older than this probe." = "Der laufende Space Juggler ist älter als diese Probe.";
+"The test takes about three minutes. You will:" = "Der Test dauert etwa drei Minuten. Du wirst:";
+"let the probe read what the device declares about itself" = "die Probe auslesen lassen, was das Gerät über sich angibt";
+"press every key once and say what is printed on it" = "jede Taste einmal drücken und sagen, was darauf steht";
+"move the cap in each of twelve directions" = "die Kappe in zwölf Richtungen bewegen";
+"say whether the LED lights up" = "sagen, ob die LED leuchtet";
+"type what is printed on the device and its label" = "eintippen, was auf dem Gerät und seinem Etikett steht";
+"check everything and create a report" = "alles prüfen und einen Bericht erstellen";
+"The report stays on your Mac until you export it or post it on GitHub. Nothing on the device is changed, except for switching its LED." = "Der Bericht bleibt auf deinem Mac, bis du ihn exportierst oder auf GitHub postest. Am Gerät wird nichts verändert, außer dass die LED geschaltet wird.";
+"3Dconnexion's driver holds the SpaceMouse, so the probe gets no keys or movements. Quit 3Dconnexion's helper before starting; it starts again at your next login." = "Der Treiber von 3Dconnexion hält die SpaceMouse, deshalb bekommt die Probe keine Tasten und Bewegungen. Beende vor dem Start den Helper von 3Dconnexion; er startet bei der nächsten Anmeldung wieder.";
+"Start Test" = "Test starten";
+
+/* Device */
+"First the probe reads what the device declares about itself. You need not do anything." = "Zuerst liest die Probe, was das Gerät über sich angibt. Du musst nichts tun.";
+"Could not be read: %@" = "Konnte nicht gelesen werden: %@";
+"Axes" = "Achsen";
+"yes" = "ja";
+"no" = "nein";
+"not asked" = "nicht gefragt";
+"Further data" = "Weitere Daten";
+"%lld of %lld readable" = "%lld von %lld lesbar";
+"Serial number" = "Seriennummer";
+"Read." = "Gelesen.";
+"The description could not be understood; it goes into the report as it is." = "Die Beschreibung ließ sich nicht verstehen; sie kommt so in den Bericht, wie sie ist.";
+"Reading…" = "Wird gelesen …";
+"Read Again" = "Erneut lesen";
+
+/* Keys */
+"Press each key of your SpaceMouse once. For every key, type what is printed on it, or where it sits if nothing is printed." = "Drücke jede Taste deiner SpaceMouse einmal. Tippe zu jeder Taste ein, was darauf steht, oder wo sie sitzt, wenn nichts darauf steht.";
+"Waiting for the first key…" = "Warte auf die erste Taste …";
+"Key %lld" = "Taste %lld";
+"What is printed on it" = "Was darauf steht";
+"%lld of %lld keys found" = "%lld von %lld Tasten gefunden";
+"My SpaceMouse has no further keys" = "Meine SpaceMouse hat keine weiteren Tasten";
+"Start Over" = "Von vorn";
+"Left button" = "Linke Taste";
+"Right button" = "Rechte Taste";
+
+/* Cap */
+"Move the cap as asked, as far as it goes, then let go. The next direction follows by itself." = "Bewege die Kappe wie gefragt bis zum Anschlag und lass dann los. Die nächste Richtung folgt von selbst.";
+"as far as it goes, then let go" = "bis zum Anschlag, dann loslassen";
+"All twelve directions recorded." = "Alle zwölf Richtungen erfasst.";
+"%lld of 12" = "%lld von 12";
+"Some directions moved another axis than on the models known so far. That is fine if you moved the cap as asked; it goes into the report." = "Manche Richtungen bewegten eine andere Achse als bei den bisher bekannten Modellen. Das ist in Ordnung, wenn du die Kappe wie gefragt bewegt hast; es kommt in den Bericht.";
+"Slide the cap to the right" = "Schiebe die Kappe nach rechts";
+"Slide the cap to the left" = "Schiebe die Kappe nach links";
+"Slide the cap forward, away from you" = "Schiebe die Kappe nach vorn, von dir weg";
+"Slide the cap back, towards you" = "Schiebe die Kappe nach hinten, zu dir hin";
+"Push the cap down" = "Drücke die Kappe nach unten";
+"Pull the cap up" = "Zieh die Kappe nach oben";
+"Tilt the cap forward" = "Kippe die Kappe nach vorn";
+"Tilt the cap back" = "Kippe die Kappe nach hinten";
+"Tilt the cap to the right" = "Kippe die Kappe nach rechts";
+"Tilt the cap to the left" = "Kippe die Kappe nach links";
+"Twist the cap clockwise" = "Dreh die Kappe im Uhrzeigersinn";
+"Twist the cap counter-clockwise" = "Dreh die Kappe gegen den Uhrzeigersinn";
+
+/* LED */
+"The probe switches the LED of your SpaceMouse on and off. Watch it." = "Die Probe schaltet die LED deiner SpaceMouse ein und aus. Schau hin.";
+"Switch LED On" = "LED einschalten";
+"Switch LED Off" = "LED ausschalten";
+"Did the LED light up?" = "Hat die LED geleuchtet?";
+"Did the LED go out?" = "Ist die LED ausgegangen?";
+"Yes" = "Ja";
+"No" = "Nein";
+
+/* Label */
+"What is printed on your SpaceMouse? Look on top and on the label underneath." = "Was steht auf deiner SpaceMouse? Schau oben drauf und auf das Etikett an der Unterseite.";
+"Model name, as printed" = "Modellname, wie aufgedruckt";
+"Serial number (S/N)" = "Seriennummer (S/N)";
+"No serial number printed" = "Keine Seriennummer aufgedruckt";
+"The device itself reports: %@" = "Das Gerät selbst meldet: %@";
+
+/* Check */
+"Is everything right? Change what is not, add what else you know, then create the report." = "Stimmt alles? Ändere, was nicht stimmt, ergänze, was du sonst weißt, und erstelle dann den Bericht.";
+"Model" = "Modell";
+"IDs" = "IDs";
+"none" = "keine";
+"All twelve directions as expected." = "Alle zwölf Richtungen wie erwartet.";
+"Lit" = "Geleuchtet";
+"Went out" = "Ausgegangen";
+"Model name" = "Modellname";
+"none printed" = "keine aufgedruckt";
+"Anything else" = "Sonst noch etwas";
+"Receiver or cable, firmware, what did not work …" = "Empfänger oder Kabel, Firmware, was nicht ging …";
+"Change" = "Ändern";
+
+/* Report */
+"Thank you! The report is on your Mac. Post it on GitHub so that Space Juggler learns your SpaceMouse, or export it and send it another way." = "Danke! Der Bericht liegt auf deinem Mac. Poste ihn auf GitHub, damit Space Juggler deine SpaceMouse lernt, oder exportiere ihn und schick ihn anders.";
+"Show in Finder" = "Im Finder zeigen";
+"Post on GitHub…" = "Auf GitHub posten …";
+"Export…" = "Exportieren …";
+"Posting copies the report and opens a new issue at github.com/metaebene/space-juggler in your browser; there you paste the report into the field “Report” and submit. You need a GitHub account. The issue is public and contains your device's serial number." = "Posten kopiert den Bericht und öffnet im Browser ein neues Issue auf github.com/metaebene/space-juggler; dort fügst du den Bericht in das Feld „Report“ ein und schickst es ab. Du brauchst ein GitHub-Konto. Das Issue ist öffentlich und enthält die Seriennummer deines Geräts.";
+"Show Report" = "Bericht zeigen";
+"Back to Check" = "Zurück zum Prüfen";
+"Test Again" = "Neu testen";
+"Post on GitHub" = "Auf GitHub posten";
+"Copy Report and Open GitHub" = "Bericht kopieren und GitHub öffnen";
+"Cancel" = "Abbrechen";
+"The report is copied to the clipboard. In the browser, paste it into the field “Report” (⌘V) and click “Create”. The issue is public." = "Der Bericht wird in die Zwischenablage kopiert. Füge ihn im Browser in das Feld „Report“ ein (⌘V) und klicke auf „Create“. Das Issue ist öffentlich.";

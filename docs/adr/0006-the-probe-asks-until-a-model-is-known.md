@@ -25,18 +25,22 @@
     client may ask (device data, ADR-0003).
   - A claim with `raw: true` gets every input report as it came (`report(device:bytes:)`), as the holder only (input,
     ADR-0001).
-- **The probe shows every attached device at once** with the cap drawing (`SpaceMouseKitUI`) and a checklist, and keeps
-  asking until the list is done:
+- **The probe shows every attached device at once** and leads through a test step by step (Tim, 2026-10-16): the test
+  is started explicitly, every step has a page of its own, and the user moves on explicitly once the step is done;
+  keys count only in the keys step, the cap only in the cap step. English and German. The steps:
   1. Description (automatic).
   2. Keys: press each key; for every new bit the probe asks for the label printed on it. Done when every button the
      descriptor declares has been seen, or the user says there are no more.
   3. Axes: the twelve directions one after another; each records which axis moved, its sign and its peak.
   4. LED: switched on and off on request; the user says whether it lit.
   5. Label: the serial number and name printed on the device, if any (the report says this becomes public).
-  6. Battery reports, as they come (wireless models).
-- **The result is one JSON file** (`format: 1`) and a prefilled GitHub issue (`.github/ISSUE_TEMPLATE/device-report.yml`)
-  on metaebene/space-juggler. Findings from it go into `docs/models.md` and the catalog as observed behaviour; an entry
-  becomes `checked`.
+  6. Check: everything once more, each part changeable, notes added; then the report is created.
+  Battery reports are recorded as they come (wireless models).
+- **The result is one JSON file** (`format: 1`), put down in `~/Library/Application Support/SpaceMouse Probe/Reports`,
+  exported from there or posted: the report goes to the clipboard and a new issue opens with the device report form
+  (`.github/ISSUE_TEMPLATE/device-report.yml`, on the default branch) on metaebene/space-juggler, where the user pastes
+  it. GitHub refuses links as long as a report (tried 2026-10-16). Findings from it go into `docs/models.md` and the
+  catalog as observed behaviour; an entry becomes `checked`.
 - While 3Dconnexion's helper holds the devices (ADR-0004) there are no raw reports: the probe still takes the
   description and asks the user to quit the helper for the rest; it never quits it.
 

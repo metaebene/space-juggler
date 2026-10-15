@@ -19,6 +19,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Helpers"
 cp "$BIN/SpaceMouseProbe" "$APP/Contents/MacOS/SpaceMouseProbe"
 sed "s/__VERSION__/$VERSION/g" App/Probe/Info.plist > "$APP/Contents/Info.plist"
+cp -R App/Probe/de.lproj "$APP/Contents/Resources/"
+mkdir -p "$APP/Contents/Resources/en.lproj"
 JUGGLER=$(Scripts/build-space-juggler.sh "$CONFIG" "$APP/Contents/Helpers" | tail -1)
 SIGN_OPTIONS=(--force --options runtime --sign "$IDENTITY")
 [[ "${TIMESTAMP:-0}" == 1 ]] && SIGN_OPTIONS+=(--timestamp)

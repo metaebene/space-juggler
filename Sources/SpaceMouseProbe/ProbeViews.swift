@@ -13,19 +13,23 @@ struct ContentView: View {
             List(probe.sessions, selection: $probe.selection) { session in
                 DeviceRow(session: session).tag(session.id)
             }
-            .navigationSplitViewColumnWidth(min: 220, ideal: 250)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 230)
             .overlay {
                 if probe.sessions.isEmpty {
-                    ContentUnavailableView("No SpaceMouse", systemImage: "cube.transparent",
-                                           description: Text(probe.problem ?? "Connect a SpaceMouse by cable, receiver or Bluetooth."))
+                    ContentUnavailableView {
+                        Label("No SpaceMouse", systemImage: "cube.transparent")
+                    } description: {
+                        if let problem = probe.problem { Text(verbatim: problem) } else {
+                            Text("Connect a SpaceMouse by cable, receiver or Bluetooth.")
+                        }
+                    }
                 }
             }
         } detail: {
             if let session = probe.selected {
-                SessionView(session: session).id(session.id)
+                TestView(session: session).id(ObjectIdentifier(session))
             } else {
-                Text("SpaceMouse Probe asks you to try every key and every direction of your SpaceMouse and writes down "
-                     + "what it sends, so that Space Juggler can support it.")
+                Text("SpaceMouse Probe guides you through every key and every movement of your SpaceMouse and writes down what it sends, so that Space Juggler can support it.")
                     .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 360).padding()
             }
         }
@@ -37,308 +41,483 @@ struct DeviceRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(session.device.name).font(.headline)
-            Text(String(format: "%04X:%04X · %@", session.device.vendorID, session.device.productID, session.device.transport))
+            Text(verbatim: session.device.name).font(.headline)
+            Text(verbatim: String(format: "%04X:%04X · %@", session.device.vendorID, session.device.productID,
+                                  session.device.transport))
                 .font(.caption).foregroundStyle(.secondary)
-            HStack(spacing: 4) {
-                ForEach(ProbeSession.Step.allCases) { step in
-                    Image(systemName: session.isDone(step) ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(session.isDone(step) ? .green : .secondary)
-                        .help(step.title)
+            Group {
+                switch session.step {
+                case .start: Text("Not tested yet")
+                case .report: Text("Report created")
+                default: Text("Step \(ProbeSession.Step.shown.firstIndex(of: session.step).map { $0 + 1 } ?? 0) of \(ProbeSession.Step.shown.count)")
                 }
             }
-            .font(.caption)
+            .font(.caption).foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
     }
 }
 
-struct SessionView: View {
+extension ProbeSession.Step {
+    var title: LocalizedStringKey {
+        switch self {
+        case .start: "Start"
+        case .description: "Device"
+        case .keys: "Keys"
+        case .cap: "Cap"
+        case .led: "LED"
+        case .label: "Label"
+        case .summary: "Check"
+        case .report: "Report"
+        }
+    }
+}
+
+// MARK: - The test
+
+struct TestView: View {
     @Environment(Probe.self) private var probe
     @Bindable var session: ProbeSession
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                notices
-                live
-                DescriptionStep(session: session)
-                KeysStep(session: session)
-                CapStep(session: session)
-                if session.hasLED { LEDStep(session: session) }
-                LabelStep(session: session)
-                footer
+        VStack(spacing: 0) {
+            if session.step != .start {
+                StepBar(session: session).padding(.horizontal, 24).padding(.vertical, 12)
+                Divider()
             }
-            .padding(20)
-            .frame(maxWidth: 760, alignment: .leading)
-        }
-        .navigationTitle(session.device.name)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(session.device.name).font(.title2.bold())
-            Text(String(format: "%04X:%04X · %@ · %@", session.device.vendorID, session.device.productID,
-                        session.device.transport, session.device.id))
-                .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
-            Text(knowledgeText).font(.callout)
-        }
-    }
-
-    private var knowledgeText: String {
-        switch session.device.knowledge {
-        case .checked: "Space Juggler knows this model, checked at a device. A report still helps if anything differs."
-        case .published: "Space Juggler knows this model from public sources only. Your report makes it a checked one."
-        case .guessed: "Space Juggler does not know this model yet; it guesses from what the device declares."
-        case nil: "Space Juggler running is older than this probe."
-        }
-    }
-
-    @ViewBuilder private var notices: some View {
-        if probe.driverRunning {
-            Notice(symbol: "exclamationmark.triangle",
-                   text: "3Dconnexion's driver holds the SpaceMouse, so the probe gets no keys or axes. Quit 3Dconnexion's "
-                       + "helper to record them (it starts again at the next login). The description works anyway.")
-        } else if !probe.holds {
-            Notice(symbol: "hand.raised",
-                   text: "Keep this window in front: only then does the SpaceMouse report to the probe.")
-        }
-        if let problem = probe.problem { Notice(symbol: "info.circle", text: problem) }
-    }
-
-    private var live: some View {
-        HStack(alignment: .top, spacing: 20) {
-            let two = session.device.buttons.map { $0.contains(.left) } ?? (session.declaredBits == [0, 1])
-            SpaceMouseTopView(axes: session.axes, fullScale: session.fullScale,
-                              sideButtons: two ? (session.heldBits.contains(0), session.heldBits.contains(1)) : nil,
-                              asked: session.asked, done: Set(session.results.keys))
-                .frame(width: 200, height: 200)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Keys").font(.headline)
-                KeyGrid(session: session)
-                Text(session.axes.description).font(.caption.monospaced()).foregroundStyle(.secondary)
-                Text("\(session.reportsSeen) reports").font(.caption).foregroundStyle(.secondary)
+            ScrollView {
+                page
+                    .padding(28)
+                    .frame(maxWidth: 720, alignment: .leading)
+                    .frame(maxWidth: .infinity)
             }
+            if session.step != .start && session.step != .report {
+                Divider()
+                footer.padding(.horizontal, 24).padding(.vertical, 12)
+            }
+        }
+        .navigationTitle(Text(verbatim: session.device.name))
+    }
+
+    @ViewBuilder private var page: some View {
+        switch session.step {
+        case .start: StartPage(session: session)
+        case .description: DescriptionPage(session: session)
+        case .keys: KeysPage(session: session)
+        case .cap: CapPage(session: session)
+        case .led: LEDPage(session: session)
+        case .label: LabelPage(session: session)
+        case .summary: SummaryPage(session: session)
+        case .report: ReportPage(session: session)
         }
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Divider()
-            Text(session.isComplete ? "All done. Thank you!" : "Not everything is recorded yet; you can send what there is.")
-                .font(.headline)
-            Text("The report contains what the device declares and sends, what you typed, and its serial number. "
-                 + "Sent to GitHub, it is public.")
-                .font(.callout).foregroundStyle(.secondary)
-            HStack {
-                Button("Save Report…") { save() }
-                Button("Report on GitHub…") { probe.sendToGitHub(session) }
-                    .buttonStyle(.borderedProminent)
-                    .help("Opens a new issue at github.com/metaebene/space-juggler with the report (also on the clipboard).")
+        HStack {
+            if let previous = session.previous, previous != .start {
+                Button("Back") { session.step = previous }
+            }
+            Spacer()
+            if session.step == .keys || session.step == .cap { FrontNotice() }
+            Spacer()
+            if session.step == .summary {
+                Button("Create Report") { probe.createReport(session) }
+                    .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+            } else if let next = session.next {
+                Button("Continue") { session.step = next }
+                    .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                    .disabled(!session.isDone(session.step))
             }
         }
     }
-
-    private func save() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = String(format: "SpaceMouse %04X-%04X.json", session.device.vendorID, session.device.productID)
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? probe.report(session).json.write(to: url)
-    }
 }
 
-struct Notice: View {
-    let symbol: String
-    let text: String
-
-    var body: some View {
-        Label { Text(text) } icon: { Image(systemName: symbol) }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.yellow.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-/// Every declared key, lit while held, with its label once known.
-struct KeyGrid: View {
+/// The steps, the current one stressed, those done ticked.
+struct StepBar: View {
     let session: ProbeSession
 
     var body: some View {
-        let bits = Array(Set(session.declaredBits).union(session.labels.keys).union(session.heldBits)).sorted()
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 6)], alignment: .leading, spacing: 6) {
-            ForEach(bits, id: \.self) { bit in
-                let held = session.heldBits.contains(bit)
-                // Until labelled: what the catalog expects there, with a question mark.
-                Text(session.labels[bit] ?? session.catalogName(bit).map { "\($0)?" } ?? "bit \(bit)")
-                    .font(.caption.weight(session.labels[bit] == nil ? .regular : .semibold))
-                    .lineLimit(1)
-                    .padding(.horizontal, 6).padding(.vertical, 4)
-                    .frame(minWidth: 56)
-                    .background(held ? AnyShapeStyle(Color.orange) : AnyShapeStyle(.quaternary), in: Capsule())
-                    .foregroundStyle(held ? .black : session.labels[bit] == nil ? .secondary : .primary)
+        HStack(spacing: 6) {
+            ForEach(Array(ProbeSession.Step.shown.filter { $0 != .led || session.hasLED }.enumerated()), id: \.element) { index, step in
+                if index > 0 { Rectangle().fill(.quaternary).frame(height: 1).frame(maxWidth: 28) }
+                let current = step == session.step
+                let done = step < session.step
+                HStack(spacing: 4) {
+                    Image(systemName: done ? "checkmark.circle.fill" : current ? "\(index + 1).circle.fill" : "\(index + 1).circle")
+                        .foregroundStyle(done ? Color.green : current ? Color.accentColor : Color.secondary)
+                    Text(step.title).fontWeight(current ? .semibold : .regular)
+                        .foregroundStyle(current ? .primary : .secondary)
+                }
+                .fixedSize()
             }
         }
-        .frame(maxWidth: 480, alignment: .leading)
+        .frame(maxWidth: .infinity)
     }
 }
 
-/// One step of the checklist.
-struct StepBox<Content: View>: View {
-    let title: String
-    let done: Bool
-    @ViewBuilder let content: Content
+/// Only the app in front gets the SpaceMouse.
+struct FrontNotice: View {
+    @Environment(Probe.self) private var probe
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 8) { content }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(4)
-        } label: {
-            Label(title, systemImage: done ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(done ? .green : .primary)
-                .font(.headline)
+        if probe.driverRunning {
+            Label("3Dconnexion's driver holds the SpaceMouse", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange).font(.callout)
+        } else if !probe.holds {
+            Label("Keep this window in front", systemImage: "hand.raised").foregroundStyle(.orange).font(.callout)
         }
     }
 }
 
-struct DescriptionStep: View {
+struct PageTitle: View {
+    let title: LocalizedStringKey
+    let text: LocalizedStringKey
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.largeTitle.bold())
+            Text(text).font(.title3).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.bottom, 8)
+    }
+}
+
+// MARK: - Pages
+
+struct StartPage: View {
     @Environment(Probe.self) private var probe
     let session: ProbeSession
 
     var body: some View {
-        StepBox(title: "1. Description", done: session.isDone(.description)) {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(verbatim: session.device.name).font(.largeTitle.bold())
+                Text(verbatim: String(format: "%04X:%04X · %@", session.device.vendorID, session.device.productID,
+                                      session.device.transport))
+                    .foregroundStyle(.secondary)
+                knowledge.font(.title3)
+            }
+            Text("The test takes about three minutes. You will:").font(.headline)
+            VStack(alignment: .leading, spacing: 8) {
+                Label("let the probe read what the device declares about itself", systemImage: "doc.text.magnifyingglass")
+                Label("press every key once and say what is printed on it", systemImage: "keyboard")
+                Label("move the cap in each of twelve directions", systemImage: "move.3d")
+                if session.hasLED { Label("say whether the LED lights up", systemImage: "lightbulb") }
+                Label("type what is printed on the device and its label", systemImage: "tag")
+                Label("check everything and create a report", systemImage: "checkmark.seal")
+            }
+            Text("The report stays on your Mac until you export it or post it on GitHub. Nothing on the device is changed, except for switching its LED.")
+                .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if probe.driverRunning {
+                Label("3Dconnexion's driver holds the SpaceMouse, so the probe gets no keys or movements. Quit 3Dconnexion's helper before starting; it starts again at your next login.",
+                      systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+            }
+            Button {
+                if session.description == nil || session.description?.error != nil { probe.describe(session) }
+                session.step = .description
+            } label: {
+                Text("Start Test").font(.title3).padding(.horizontal, 12).padding(.vertical, 4)
+            }
+            .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+        }
+    }
+
+    @ViewBuilder private var knowledge: some View {
+        switch session.device.knowledge {
+        case .checked: Text("Space Juggler knows this model, checked at a device. A report still helps if anything differs.")
+        case .published: Text("Space Juggler knows this model from public sources only. Your report makes it a checked one.")
+        case .guessed: Text("Space Juggler does not know this model yet. Your report teaches it.")
+        case nil: Text("The Space Juggler running is older than this probe.")
+        }
+    }
+}
+
+struct DescriptionPage: View {
+    @Environment(Probe.self) private var probe
+    let session: ProbeSession
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            PageTitle(title: "Device", text: "First the probe reads what the device declares about itself. You need not do anything.")
             if let description = session.description {
                 if let error = description.error {
-                    Text("Not read: \(error)").foregroundStyle(.red)
+                    Label { Text("Could not be read: \(error)") } icon: { Image(systemName: "xmark.octagon") }
+                        .foregroundStyle(.red)
                 } else if let parsed = session.descriptor {
-                    Text("Report descriptor: \(description.reportDescriptor.count) bytes, axes up to ±\(parsed.axisLogicalMaximum ?? 0), "
-                         + "\(parsed.buttonUsages.count) keys, LED: \(parsed.hasLED ? "yes" : "no").")
-                    let read = description.featureReports.filter { $0.bytes != nil }.count
-                    Text("Feature reports: \(read) of \(description.featureReports.count) read"
-                         + (description.featureReportsVia.map { " (through the \($0))" } ?? "") + ".")
-                        .foregroundStyle(.secondary)
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                        GridRow { Text("Keys").foregroundStyle(.secondary); Text(verbatim: "\(parsed.buttonUsages.count)") }
+                        GridRow { Text("Axes").foregroundStyle(.secondary); Text(verbatim: "6, ±\(parsed.axisLogicalMaximum ?? 0)") }
+                        GridRow { Text("LED").foregroundStyle(.secondary); Text(parsed.hasLED ? "yes" : "no") }
+                        GridRow {
+                            Text("Further data").foregroundStyle(.secondary)
+                            Text("\(description.featureReports.filter { $0.bytes != nil }.count) of \(description.featureReports.count) readable")
+                        }
+                        if let serial = session.device.serialNumber {
+                            GridRow { Text("Serial number").foregroundStyle(.secondary); Text(verbatim: serial).textSelection(.enabled) }
+                        }
+                    }
+                    .font(.title3)
+                    Label("Read.", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                 } else {
-                    Text("The report descriptor could not be parsed (\(description.reportDescriptor.count) bytes); it goes into the report as it is.")
+                    Text("The description could not be understood; it goes into the report as it is.")
                 }
             } else {
-                ProgressView().controlSize(.small)
+                ProgressView("Reading…")
             }
             Button("Read Again") { probe.describe(session) }
         }
     }
 }
 
-struct KeysStep: View {
+struct KeysPage: View {
     @Bindable var session: ProbeSession
-    @State private var draft = ""
 
     var body: some View {
-        StepBox(title: "2. Keys", done: session.isDone(.keys)) {
-            Text("Press every key once, one after another, and type what is printed on it.")
-            if let bit = session.unlabelled.first {
-                HStack {
-                    Text("Bit \(bit) – what is printed on that key?")
-                    TextField("Label", text: $draft)
-                        .frame(width: 160)
-                        .onSubmit { save(bit) }
-                    Button("OK") { save(bit) }.disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+        VStack(alignment: .leading, spacing: 16) {
+            PageTitle(title: "Keys", text: "Press each key of your SpaceMouse once. For every key, type what is printed on it, or where it sits if nothing is printed.")
+            HStack(alignment: .top, spacing: 28) {
+                SpaceMouseTopView(axes: session.axes, fullScale: session.fullScale,
+                                  sideButtons: session.hasSideButtons ? (session.heldBits.contains(0), session.heldBits.contains(1)) : nil)
+                    .frame(width: 180, height: 180)
+                VStack(alignment: .leading, spacing: 10) {
+                    if session.keys.isEmpty {
+                        Text("Waiting for the first key…").foregroundStyle(.secondary)
+                    }
+                    ForEach(Array(session.keys.enumerated()), id: \.element) { index, bit in
+                        HStack {
+                            Image(systemName: session.heldBits.contains(bit) ? "circle.fill" : "checkmark.circle.fill")
+                                .foregroundStyle(session.heldBits.contains(bit) ? Color.orange : Color.green)
+                            Text("Key \(index + 1)").frame(width: 70, alignment: .leading)
+                            TextField("What is printed on it", text: Binding(get: { session.labels[bit] ?? "" },
+                                                                            set: { session.labels[bit] = $0 }))
+                                .frame(width: 220)
+                        }
+                    }
                 }
-                .onAppear { draft = session.catalogName(bit) ?? "" }
-                .onChange(of: bit) { _, new in draft = session.catalogName(new) ?? "" }
             }
             let declared = session.declaredBits.count
-            Text(declared > 0 ? "\(session.labels.count) of \(declared) keys the device declares." : "\(session.labels.count) keys.")
-                .foregroundStyle(.secondary)
-            if !session.labels.isEmpty {
-                Button("Start Again") {
-                    session.labels = [:]
-                    session.unlabelled = []
-                    session.noMoreKeys = false
-                }
+            if declared > 0 {
+                Text("\(session.keys.count) of \(declared) keys found").font(.headline)
             }
-            Toggle("There are no more keys", isOn: $session.noMoreKeys)
+            if declared == 0 || session.keys.count < declared {
+                Toggle("My SpaceMouse has no further keys", isOn: $session.noMoreKeys)
+            }
+            if !session.keys.isEmpty {
+                Button("Start Over") { session.forgetKeys() }
+            }
         }
-    }
-
-    private func save(_ bit: Int) {
-        guard !draft.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        session.label(bit, draft)
     }
 }
 
-struct CapStep: View {
+struct CapPage: View {
     let session: ProbeSession
 
     var body: some View {
-        StepBox(title: "3. Cap", done: session.isDone(.axes)) {
-            if let asked = session.asked {
-                Text("\(asked.instruction) as far as it goes, then let go.").font(.title3)
-            } else {
-                Text("All twelve directions recorded.")
-            }
-            Text("\(session.results.count) of 12 directions.").foregroundStyle(.secondary)
-            let odd = SpaceMouseAxes.Direction.allCases.filter { session.results[$0]?.asExpected == false }
-            if !odd.isEmpty {
-                Text("Not as on the models known so far: " + odd.map { direction in
-                    let result = session.results[direction]!
-                    return "\(direction.rawValue) → \(result.sign > 0 ? "+" : "−")\(SpaceMouseAxes.axisNames[result.axis])"
-                }.joined(separator: ", ") + ". That is fine if it is what you did; it goes into the report.")
-                .foregroundStyle(.orange)
-            }
-            if !session.results.isEmpty { Button("Start Again") { session.redoAxes() } }
-        }
-    }
-}
-
-struct LEDStep: View {
-    @Environment(Probe.self) private var probe
-    @Bindable var session: ProbeSession
-    @State private var asking: Bool?
-
-    var body: some View {
-        StepBox(title: "4. LED", done: session.isDone(.led)) {
-            HStack {
-                Button("Switch LED On") { probe.setLED(true, session); asking = true }
-                Button("Switch LED Off") { probe.setLED(false, session); asking = false }
-            }
-            if let asking {
-                HStack {
-                    Text(asking ? "Did the LED light up?" : "Did the LED go out?")
-                    Button("Yes") { answer(asking, true) }
-                    Button("No") { answer(asking, false) }
+        VStack(alignment: .leading, spacing: 16) {
+            PageTitle(title: "Cap", text: "Move the cap as asked, as far as it goes, then let go. The next direction follows by itself.")
+            HStack(alignment: .center, spacing: 28) {
+                SpaceMouseTopView(axes: session.axes, fullScale: session.fullScale,
+                                  sideButtons: session.hasSideButtons ? (session.heldBits.contains(0), session.heldBits.contains(1)) : nil,
+                                  asked: session.asked, done: Set(session.results.keys))
+                    .frame(width: 240, height: 240)
+                VStack(alignment: .leading, spacing: 12) {
+                    if let asked = session.asked {
+                        Text(verbatim: asked.localizedInstruction).font(.title.bold()).fixedSize(horizontal: false, vertical: true)
+                        Text("as far as it goes, then let go").font(.title3).foregroundStyle(.secondary)
+                    } else {
+                        Label("All twelve directions recorded.", systemImage: "checkmark.circle.fill")
+                            .font(.title2).foregroundStyle(.green)
+                    }
+                    Text("\(session.results.count) of 12").font(.headline)
                 }
             }
-            Text("Lit: \(text(session.ledLit)) · went out: \(text(session.ledWentOut))").foregroundStyle(.secondary)
+            let odd = SpaceMouseAxes.Direction.allCases.filter { session.results[$0]?.asExpected == false }
+            if !odd.isEmpty {
+                Text("Some directions moved another axis than on the models known so far. That is fine if you moved the cap as asked; it goes into the report.")
+                    .foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+            }
+            if !session.results.isEmpty { Button("Start Over") { session.redoCap() } }
         }
     }
-
-    private func answer(_ on: Bool, _ yes: Bool) {
-        if on { session.ledLit = yes } else { session.ledWentOut = yes }
-        asking = nil
-    }
-
-    private func text(_ value: Bool?) -> String { value.map { $0 ? "yes" : "no" } ?? "not asked" }
 }
 
-struct LabelStep: View {
+struct LEDPage: View {
+    @Environment(Probe.self) private var probe
     @Bindable var session: ProbeSession
 
     var body: some View {
-        StepBox(title: "5. Label", done: session.isDone(.label)) {
-            Text("What is printed on the device and on the label underneath it?")
-            TextField("Model name, as printed", text: $session.printedName)
-            HStack {
-                TextField("Serial number (S/N)", text: $session.printedSerial).disabled(session.noSerialPrinted)
-                Toggle("None printed", isOn: $session.noSerialPrinted)
+        VStack(alignment: .leading, spacing: 20) {
+            PageTitle(title: "LED", text: "The probe switches the LED of your SpaceMouse on and off. Watch it.")
+            question(button: "Switch LED On", asks: "Did the LED light up?", answer: $session.ledLit) {
+                probe.setLED(true, session)
             }
-            if let read = session.device.serialNumber {
-                Text("The device says: \(read)").foregroundStyle(.secondary).textSelection(.enabled)
+            if session.ledLit != nil {
+                question(button: "Switch LED Off", asks: "Did the LED go out?", answer: $session.ledWentOut) {
+                    probe.setLED(false, session)
+                }
             }
-            Text("Anything else (receiver, firmware, what did not work):").padding(.top, 4)
-            TextEditor(text: $session.notes).frame(height: 60).font(.body)
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(.quaternary))
         }
+    }
+
+    private func question(button: LocalizedStringKey, asks: LocalizedStringKey, answer: Binding<Bool?>,
+                          action: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button(button, action: action).controlSize(.large)
+            HStack(spacing: 12) {
+                Text(asks).font(.title3)
+                Picker(asks, selection: answer) {
+                    Text("Yes").tag(Bool?.some(true))
+                    Text("No").tag(Bool?.some(false))
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 140)
+            }
+        }
+    }
+}
+
+struct LabelPage: View {
+    @Bindable var session: ProbeSession
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            PageTitle(title: "Label", text: "What is printed on your SpaceMouse? Look on top and on the label underneath.")
+            Form {
+                TextField("Model name, as printed", text: $session.printedName)
+                TextField("Serial number (S/N)", text: $session.printedSerial).disabled(session.noSerialPrinted)
+                Toggle("No serial number printed", isOn: $session.noSerialPrinted)
+            }
+            .formStyle(.grouped)
+            .frame(maxWidth: 520)
+            if let read = session.device.serialNumber {
+                Text("The device itself reports: \(read)").foregroundStyle(.secondary).textSelection(.enabled)
+            }
+        }
+    }
+}
+
+struct SummaryPage: View {
+    @Bindable var session: ProbeSession
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            PageTitle(title: "Check", text: "Is everything right? Change what is not, add what else you know, then create the report.")
+            Form {
+                Section {
+                    row("Model") { Text(verbatim: session.device.name) }
+                    row("IDs") {
+                        Text(verbatim: String(format: "%04X:%04X, %@", session.device.vendorID, session.device.productID,
+                                              session.device.transport))
+                    }
+                } header: { header("Device", step: .description) }
+                Section {
+                    if session.keys.isEmpty { Text("none") }
+                    ForEach(Array(session.keys.enumerated()), id: \.element) { index, bit in
+                        row("Key \(index + 1)") { Text(verbatim: session.labels[bit] ?? "") }
+                    }
+                } header: { header("Keys", step: .keys) }
+                Section {
+                    let odd = SpaceMouseAxes.Direction.allCases.filter { session.results[$0]?.asExpected == false }
+                    if odd.isEmpty {
+                        Text("All twelve directions as expected.")
+                    } else {
+                        ForEach(odd, id: \.self) { direction in
+                            let result = session.results[direction]!
+                            LabeledContent {
+                                Text(verbatim: "\(result.sign > 0 ? "+" : "−")\(SpaceMouseAxes.axisNames[result.axis])")
+                            } label: {
+                                Text(verbatim: direction.localizedInstruction)
+                            }
+                        }
+                    }
+                } header: { header("Cap", step: .cap) }
+                if session.hasLED {
+                    Section {
+                        row("Lit") { Text(answer(session.ledLit)) }
+                        row("Went out") { Text(answer(session.ledWentOut)) }
+                    } header: { header("LED", step: .led) }
+                }
+                Section {
+                    row("Model name") { Text(verbatim: session.printedName) }
+                    row("Serial number") {
+                        if session.noSerialPrinted { Text("none printed") } else { Text(verbatim: session.printedSerial) }
+                    }
+                } header: { header("Label", step: .label) }
+                Section("Anything else") {
+                    TextField("Receiver or cable, firmware, what did not work …", text: $session.notes, axis: .vertical)
+                        .lineLimit(3...8).labelsHidden()
+                }
+            }
+            .formStyle(.grouped)
+        }
+    }
+
+    private func row<Content: View>(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
+        LabeledContent { content() } label: { Text(title) }
+    }
+
+    private func header(_ title: LocalizedStringKey, step: ProbeSession.Step) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Button("Change") { session.step = step }.buttonStyle(.link).font(.callout)
+        }
+    }
+
+    private func answer(_ value: Bool?) -> LocalizedStringKey { value.map { $0 ? "yes" : "no" } ?? "not asked" }
+}
+
+struct ReportPage: View {
+    @Environment(Probe.self) private var probe
+    let session: ProbeSession
+    @State private var showsJSON = false
+    @State private var confirmsPosting = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Label("Report created", systemImage: "checkmark.seal.fill").font(.largeTitle.bold()).foregroundStyle(.green)
+            Text("Thank you! The report is on your Mac. Post it on GitHub so that Space Juggler learns your SpaceMouse, or export it and send it another way.")
+                .font(.title3).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if let file = session.reportFile {
+                HStack {
+                    Text(verbatim: file.lastPathComponent).font(.callout.monospaced()).textSelection(.enabled)
+                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file]) }.buttonStyle(.link)
+                }
+            }
+            HStack(spacing: 12) {
+                Button { confirmsPosting = true } label: { Label("Post on GitHub…", systemImage: "arrow.up.forward.app") }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
+                Button { export() } label: { Label("Export…", systemImage: "square.and.arrow.up") }
+                    .controlSize(.large)
+            }
+            Text("Posting copies the report and opens a new issue at github.com/metaebene/space-juggler in your browser; there you paste the report into the field “Report” and submit. You need a GitHub account. The issue is public and contains your device's serial number.")
+                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            DisclosureGroup("Show Report", isExpanded: $showsJSON) {
+                Text(verbatim: String(decoding: session.report?.json ?? Data(), as: UTF8.self))
+                    .font(.caption.monospaced()).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(8)
+            }
+            Divider()
+            HStack {
+                Button("Back to Check") { session.step = .summary }
+                Button("Test Again") { probe.restart(session) }
+            }
+        }
+        .alert("Post on GitHub", isPresented: $confirmsPosting) {
+            Button("Copy Report and Open GitHub") { probe.sendToGitHub(session) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The report is copied to the clipboard. In the browser, paste it into the field “Report” (⌘V) and click “Create”. The issue is public.")
+        }
+    }
+
+    private func export() {
+        guard let report = session.report else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = session.reportFile?.lastPathComponent
+            ?? String(format: "SpaceMouse %04X-%04X.json", session.device.vendorID, session.device.productID)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? report.json.write(to: url)
     }
 }

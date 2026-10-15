@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you! SpaceMouse Probe has put its report on your clipboard; if the field below is empty, paste it there.
+        Thank you! SpaceMouse Probe has put its report on your clipboard: paste it into the field "Report" below (⌘V).
         The report contains what your device declares and sends, what you typed in the probe, and its serial number.
   - type: input
     id: model

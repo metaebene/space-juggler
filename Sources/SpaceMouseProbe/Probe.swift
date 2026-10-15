@@ -42,7 +42,7 @@ final class Probe {
         switch event {
         case .connected(let version):
             brokerVersion = version
-            problem = version < 4 ? "Space Juggler \(version) is running, which cannot describe devices yet. It hands over to this one's in a moment." : nil
+            problem = version < 4 ? String(localized: "An older Space Juggler is running; it hands over to the probe's in a moment.") : nil
         case .disconnected:
             brokerVersion = nil
         case .holding(let holds):
@@ -50,7 +50,7 @@ final class Probe {
         case .devices(let devices):
             update(devices)
         case .unavailable(let reason):
-            problem = reason
+            problem = Bundle.main.localizedString(forKey: reason, value: reason, table: nil)
         case .axes, .buttons:
             break
         }
@@ -82,25 +82,47 @@ final class Probe {
         connection.setLED(on, device: session.id)
     }
 
-    // MARK: - Sending
-
-    func report(_ session: ProbeSession) -> ProbeReport {
-        session.report(brokerVersion: brokerVersion, driverRunning: driverRunning)
+    /// Starts the test of a device again from the beginning.
+    func restart(_ session: ProbeSession) {
+        guard let index = sessions.firstIndex(where: { $0 === session }) else { return }
+        let fresh = ProbeSession(device: session.device)
+        fresh.description = session.description
+        fresh.descriptor = session.descriptor
+        sessions[index] = fresh
     }
 
-    /// Opens the issue form with the report in it; when it is too long for a link, it goes to the clipboard and the
-    /// form says to paste it.
+    // MARK: - Report
+
+    /// Where reports are put down: `~/Library/Application Support/SpaceMouse Probe/Reports`.
+    static var reportsFolder: URL {
+        URL.applicationSupportDirectory.appendingPathComponent("SpaceMouse Probe/Reports", isDirectory: true)
+    }
+
+    /// Makes the report and puts it down in `reportsFolder`.
+    func createReport(_ session: ProbeSession) {
+        let report = session.makeReport(brokerVersion: brokerVersion, driverRunning: driverRunning)
+        session.report = report
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
+        let name = String(format: "%@ %04X-%04X %@.json", formatter.string(from: report.date), session.device.vendorID,
+                          session.device.productID, session.device.name.replacingOccurrences(of: "/", with: "-"))
+        let file = Self.reportsFolder.appendingPathComponent(name)
+        try? FileManager.default.createDirectory(at: Self.reportsFolder, withIntermediateDirectories: true)
+        session.reportFile = (try? report.json.write(to: file)) == nil ? nil : file
+        session.step = .report
+    }
+
+    /// Puts the report on the clipboard and opens a new issue with the device report form (only title and model in
+    /// the link: GitHub refuses long links, the report is pasted).
     func sendToGitHub(_ session: ProbeSession) {
-        let json = String(decoding: report(session).json, as: UTF8.self)
+        guard let report = session.report else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(String(decoding: report.json, as: UTF8.self), forType: .string)
         let title = String(format: "Device report: %@ (%04X:%04X)", session.device.name, session.device.vendorID,
                            session.device.productID)
         var components = URLComponents(url: Self.issues, resolvingAgainstBaseURL: false)!
-        var items = [URLQueryItem(name: "template", value: "device-report.yml"), URLQueryItem(name: "title", value: title),
-                     URLQueryItem(name: "model", value: session.printedName.isEmpty ? session.device.name : session.printedName)]
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(json, forType: .string)
-        if json.utf8.count < 6000 { items.append(URLQueryItem(name: "report", value: json)) }
-        components.queryItems = items
+        components.queryItems = [URLQueryItem(name: "template", value: "device-report.yml"), URLQueryItem(name: "title", value: title),
+                                 URLQueryItem(name: "model", value: session.printedName.isEmpty ? session.device.name : session.printedName)]
         if let url = components.url { NSWorkspace.shared.open(url) }
     }
 }

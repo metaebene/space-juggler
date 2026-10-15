@@ -25,23 +25,34 @@ struct ProbeSessionTests {
         return [[0x01] + values[0..<3].flatMap(le), [0x02] + values[3..<6].flatMap(le)]
     }
 
-    @Test func keysAreAskedForOneAfterAnother() {
+    @Test func keysCountOnlyInTheKeysStep() {
         let session = session(buttons: 3)
         #expect(session.declaredBits == [0, 1, 2])
+        session.ingest([0x03, 0b001])
+        session.ingest([0x03, 0b000])
+        #expect(session.keys.isEmpty)
+        session.step = .keys
         session.ingest([0x03, 0b011])
         session.ingest([0x03, 0b000])
-        #expect(session.unlabelled == [0, 1])
-        session.label(0, " 1 ")
-        session.label(1, "2")
+        #expect(session.keys == [0, 1])
+        // No catalog entry for this model: nothing to suggest, the user types it.
+        #expect(!session.isDone(.keys))
+        session.labels[0] = "1"
+        session.labels[1] = "2"
         #expect(!session.isDone(.keys))
         session.ingest([0x03, 0b100])
-        session.label(2, "MENU")
-        #expect(session.labels == [0: "1", 1: "2", 2: "MENU"])
+        session.labels[2] = "MENU"
+        #expect(session.isDone(.keys))
+        session.forgetKeys()
+        session.noMoreKeys = true
         #expect(session.isDone(.keys))
     }
 
-    @Test func directionsAreRecordedWhenTheCapIsBack() {
+    @Test func directionsCountOnlyInTheCapStep() {
         let session = session()
+        for report in axes([300, 20, 0, 0, 0, 0]) + axes([0, 0, 0, 0, 0, 0]) { session.ingest(report) }
+        #expect(session.results.isEmpty)
+        session.step = .cap
         #expect(session.asked == .slideRight)
         for report in axes([300, 20, 0, 0, 0, 0]) { session.ingest(report) }
         #expect(session.results.isEmpty)
@@ -54,14 +65,25 @@ struct ProbeSessionTests {
         #expect(session.ranges[0] == [0, 310])
     }
 
+    @Test func stepsSkipTheLEDWhenThereIsNone() {
+        let session = session()
+        session.step = .cap
+        #expect(session.next == .led)
+        session.descriptor = HIDReportDescriptor([0x05, 0x01, 0x09, 0x08, 0xA1, 0x01, 0xC0])
+        #expect(session.next == .label)
+        session.step = .label
+        #expect(session.previous == .cap)
+    }
+
     @Test func reportCarriesWhatWasFound() throws {
         let session = session()
+        session.step = .keys
         session.ingest([0x17, 0x40, 0x01])
         session.ingest([0x1C, 0x05, 0x00])
         session.ingest([0x03, 0b01])
-        session.label(0, "1")
+        session.labels[0] = "1"
         session.printedName = "SpaceMouse Future"
-        let report = session.report(brokerVersion: 4, driverRunning: false)
+        let report = session.makeReport(brokerVersion: 4, driverRunning: false)
         #expect(report.batteryReports == ["17 40 01"])
         #expect(report.otherInputReports == ["1C": "1c 05 00"])
         #expect(report.keys.found.first?.label == "1")
