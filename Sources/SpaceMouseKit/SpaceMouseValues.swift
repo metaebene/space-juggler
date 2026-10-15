@@ -1,6 +1,7 @@
 import Foundation
 
-/// Deflection of the SpaceMouse cap, as the input reports it. Native HID: raw device units, about ±350 per axis.
+/// Deflection of the SpaceMouse cap, as the input reports it. Native HID: raw device units, about ±350 per axis
+/// (`SpaceMouseModel.axisFullScale`).
 /// Axis signs, seen from the user with the cable at the back (stagehand, docs/spacemouse-findings.md):
 /// slide right x+, slide forward y−, push down z+, tilt forward rx−, tilt right ry−,
 /// twist clockwise seen from above rz+.
@@ -21,13 +22,79 @@ public struct SpaceMouseAxes: Sendable, Equatable, Codable, CustomStringConverti
     public var isZero: Bool { self == .zero }
 
     public var description: String { "x \(x) y \(y) z \(z) rx \(rx) ry \(ry) rz \(rz)" }
+
+    /// One way the cap can move (stagehand ADR-0084), with the signs above.
+    public enum Direction: String, CaseIterable, Sendable, Hashable, Codable {
+        case slideRight, slideLeft, slideForward, slideBack, push, pull
+        case tiltForward, tiltBack, tiltRight, tiltLeft, twistRight, twistLeft
+
+        /// The axis (0 … 5: x y z rx ry rz) and which sign of it this direction is.
+        public var axis: (index: Int, sign: Int) {
+            switch self {
+            case .slideRight: (0, 1)
+            case .slideLeft: (0, -1)
+            case .slideForward: (1, -1)
+            case .slideBack: (1, 1)
+            case .push: (2, 1)
+            case .pull: (2, -1)
+            case .tiltForward: (3, -1)
+            case .tiltBack: (3, 1)
+            case .tiltRight: (4, -1)
+            case .tiltLeft: (4, 1)
+            case .twistRight: (5, 1)
+            case .twistLeft: (5, -1)
+            }
+        }
+
+        /// What to do with the cap, as an instruction.
+        public var instruction: String {
+            switch self {
+            case .slideRight: "Slide the cap to the right"
+            case .slideLeft: "Slide the cap to the left"
+            case .slideForward: "Slide the cap forward, away from you"
+            case .slideBack: "Slide the cap back, towards you"
+            case .push: "Push the cap down"
+            case .pull: "Pull the cap up"
+            case .tiltForward: "Tilt the cap forward"
+            case .tiltBack: "Tilt the cap back"
+            case .tiltRight: "Tilt the cap to the right"
+            case .tiltLeft: "Tilt the cap to the left"
+            case .twistRight: "Twist the cap clockwise"
+            case .twistLeft: "Twist the cap counter-clockwise"
+            }
+        }
+    }
+
+    public static let axisNames = ["x", "y", "z", "rx", "ry", "rz"]
+
+    /// How far the cap is moved in a direction, in raw units; 0 when it is moved the other way.
+    public func along(_ direction: Direction) -> Int {
+        let (index, sign) = direction.axis
+        return max(0, all[index] * sign)
+    }
+
+    /// The same as a fraction of `fullScale`, 0 … 1.
+    public func fraction(_ direction: Direction, fullScale: Int = deviceFullScale) -> Double {
+        min(1, Double(along(direction)) / Double(max(1, fullScale)))
+    }
+
+    /// The direction the cap is moved furthest in; nil at rest. Ties go to the earlier direction.
+    public var strongest: Direction? {
+        var best: Direction?, most = 0
+        for direction in Direction.allCases where along(direction) > most {
+            best = direction
+            most = along(direction)
+        }
+        return best
+    }
 }
 
 /// The buttons held, by what they are, whichever model has them: each model says which bit of its button report is
-/// which (`SpaceMouseModel.buttonBits`).
-public struct SpaceMouseButtons: OptionSet, Sendable, Hashable, Codable {
-    public let rawValue: UInt32
-    public init(rawValue: UInt32) { self.rawValue = rawValue }
+/// which (`SpaceMouseModel.buttonBits`). Names as printed on the keys; the bigger models share 3Dconnexion's numbering
+/// (`SpaceMouseModel.sharedNumbering`, docs/models.md). Bits 0 … 16 are those of protocol 1.
+public struct SpaceMouseButtons: OptionSet, Sendable, Hashable, Codable, CaseIterable {
+    public let rawValue: UInt64
+    public init(rawValue: UInt64) { self.rawValue = rawValue }
     /// The two buttons of the SpaceMouse Compact, the SpaceNavigator and the SpaceMouse Wireless: 1 (left), 2 (right).
     public static let left = SpaceMouseButtons(rawValue: 1 << 0)
     public static let right = SpaceMouseButtons(rawValue: 1 << 1)
@@ -49,96 +116,64 @@ public struct SpaceMouseButtons: OptionSet, Sendable, Hashable, Codable {
     public static let control = SpaceMouseButtons(rawValue: 1 << 14)
     public static let alt = SpaceMouseButtons(rawValue: 1 << 15)
     public static let rotationLock = SpaceMouseButtons(rawValue: 1 << 16)
-}
+    /// The function keys of the SpacePilot, SpacePilot Pro and Enterprise beyond the Pro's four (docs/models.md).
+    public static let key5 = SpaceMouseButtons(rawValue: 1 << 17)
+    public static let key6 = SpaceMouseButtons(rawValue: 1 << 18)
+    public static let key7 = SpaceMouseButtons(rawValue: 1 << 19)
+    public static let key8 = SpaceMouseButtons(rawValue: 1 << 20)
+    public static let key9 = SpaceMouseButtons(rawValue: 1 << 21)
+    public static let key10 = SpaceMouseButtons(rawValue: 1 << 22)
+    public static let key11 = SpaceMouseButtons(rawValue: 1 << 23)
+    public static let key12 = SpaceMouseButtons(rawValue: 1 << 24)
+    /// The views the bigger models have as keys of their own or as the long press of a view key.
+    public static let viewLeft = SpaceMouseButtons(rawValue: 1 << 25)
+    public static let viewBottom = SpaceMouseButtons(rawValue: 1 << 26)
+    public static let viewBack = SpaceMouseButtons(rawValue: 1 << 27)
+    public static let viewRollReverse = SpaceMouseButtons(rawValue: 1 << 28)
+    public static let viewIso1 = SpaceMouseButtons(rawValue: 1 << 29)
+    public static let viewIso2 = SpaceMouseButtons(rawValue: 1 << 30)
+    /// The keyboard keys of the Enterprise.
+    public static let enter = SpaceMouseButtons(rawValue: 1 << 31)
+    public static let delete = SpaceMouseButtons(rawValue: 1 << 32)
+    public static let tab = SpaceMouseButtons(rawValue: 1 << 33)
+    public static let space = SpaceMouseButtons(rawValue: 1 << 34)
+    /// The Enterprise's saved views V1 … V3.
+    public static let view1 = SpaceMouseButtons(rawValue: 1 << 35)
+    public static let view2 = SpaceMouseButtons(rawValue: 1 << 36)
+    public static let view3 = SpaceMouseButtons(rawValue: 1 << 37)
+    /// Sensitivity `+` and `−`, DOMINANT, PAN/ZOOM and CONFIG of the SpacePilot family and the SpaceExplorer.
+    public static let plus = SpaceMouseButtons(rawValue: 1 << 38)
+    public static let minus = SpaceMouseButtons(rawValue: 1 << 39)
+    public static let dominant = SpaceMouseButtons(rawValue: 1 << 40)
+    public static let panZoom = SpaceMouseButtons(rawValue: 1 << 41)
+    public static let config = SpaceMouseButtons(rawValue: 1 << 42)
 
-/// A device the native input reads, matched by vendor **and** product ID (ADR-0003). All of them send their axes in
-/// reports 1 and 2 or in one long report 1, their buttons in report 3, and take output report 4 for the LED (ADR-0023,
-/// Kugelblitz ADR-0134).
-public struct SpaceMouseModel: Sendable, Equatable {
-    public let vendorID: Int
-    public let productID: Int
-    public let name: String
-    /// Which bit of the button report (bit 0 = the lowest bit of the byte after the report ID) is which button.
-    public let buttonBits: [Int: SpaceMouseButtons]
+    /// The buttons protocol 1 knows (a `UInt32` there).
+    public static let protocol1 = SpaceMouseButtons(rawValue: 0xFFFF_FFFF)
 
-    public static let compact = SpaceMouseModel(vendorID: 0x256F, productID: 0xC635, name: "SpaceMouse Compact",
-                                                buttonBits: twoButtons)
-    /// From the Logitech years, hence Logitech's vendor ID. Report descriptor read from the IORegistry (2026-10-04):
-    /// the Compact's reports, but a logical range of ±500 instead of ±350.
-    public static let spaceNavigator = SpaceMouseModel(vendorID: 0x046D, productID: 0xC626, name: "SpaceNavigator",
-                                                       buttonBits: twoButtons)
-    /// Also from the Logitech years. The Compact's axes (±350) and LED; fifteen keys in a report 3 of six bytes, at
-    /// 3Dconnexion's numbering shared with the bigger models, hence the gaps (stagehand ADR-0087: descriptor and every
-    /// key checked at a device, 2026-10-05).
-    public static let spaceMousePro = SpaceMouseModel(
-        vendorID: 0x046D, productID: 0xC62B, name: "SpaceMouse Pro",
-        buttonBits: [0: .menu, 1: .fit, 2: .viewTop, 4: .viewRight, 5: .viewFront, 8: .viewRoll,
-                     12: .key1, 13: .key2, 14: .key3, 15: .key4,
-                     22: .escape, 23: .alt, 24: .shift, 25: .control, 26: .rotationLock])
-    /// The Bluetooth Edition, over Bluetooth and on its USB cable with the same IDs and descriptor: the Compact's two
-    /// buttons, all six axes (±350) in one report 1 of twelve bytes (stagehand ADR-0090, ADR-0091). Over the Universal
-    /// Receiver it is another device, not known here.
-    public static let spaceMouseWireless = SpaceMouseModel(vendorID: 0x256F, productID: 0xC63A,
-                                                           name: "SpaceMouse Wireless", buttonBits: twoButtons)
-    public static let known: [SpaceMouseModel] = [.compact, .spaceNavigator, .spaceMousePro, .spaceMouseWireless]
+    public static let allCases: [SpaceMouseButtons] = (0...42).map { SpaceMouseButtons(rawValue: 1 << UInt64($0)) }
 
-    private static let twoButtons: [Int: SpaceMouseButtons] = [0: .left, 1: .right]
+    /// Each button held, alone.
+    public var each: [SpaceMouseButtons] { Self.allCases.filter { contains($0) } }
 
-    /// Every model has one status LED, switched with output report 4 (`04 01` / `04 00`); the device does not report
-    /// its state, so whoever writes it mirrors it (stagehand ADR-0083).
-    public var hasStatusLED: Bool { true }
-
-    /// The SpaceMouse Wireless takes output report 4 over Bluetooth, but its LED lights only on the USB cable
-    /// (stagehand ADR-0091, seen at the device).
-    public var statusLEDNeedsCable: Bool { self == .spaceMouseWireless }
-
-    /// The vendor feature report that carries the serial number, for the models whose HID device has none on any
-    /// transport: the Wireless (printed on its label, stagehand ADR-0092) and the Compact (different on two devices,
-    /// taken as its serial number, docs/serial-report.md). The SpaceNavigator and the SpaceMouse Pro declare it too, but
-    /// leave it empty. The only feature report ever read, and only with GET.
-    public var serialFeatureReportID: UInt8? {
-        self == .spaceMouseWireless || self == .compact ? SpaceMouseReport.serialReportID : nil
-    }
-
-    /// The two buttons a program uses that only knows two: the Compact's left and right, the Pro's MENU and FIT
-    /// (Space Glider ADR-0025).
-    public var twoButtons: (left: SpaceMouseButtons, right: SpaceMouseButtons) {
-        self == .spaceMousePro ? (.menu, .fit) : (.left, .right)
-    }
-
-    /// `held` as a program sees it that only knows two buttons: `.left` and `.right` (`twoButtons`).
-    public func asTwoButtons(_ held: SpaceMouseButtons) -> SpaceMouseButtons {
-        var two: SpaceMouseButtons = []
-        if held.contains(twoButtons.left) { two.insert(.left) }
-        if held.contains(twoButtons.right) { two.insert(.right) }
-        return two
-    }
-
-    public static func matching(vendorID: Int, productID: Int) -> SpaceMouseModel? {
-        known.first { $0.vendorID == vendorID && $0.productID == productID }
-    }
-
-    /// The model behind a product ID the 3DxWare driver names (it gives no vendor ID); the known models' product IDs
-    /// differ.
-    public static func matching(productID: Int) -> SpaceMouseModel? {
-        known.first { $0.productID == productID }
-    }
-
-    /// The buttons held according to a bitmap in the device's numbering (report 3, or the driver's state).
-    public func buttons(_ bitmap: UInt64) -> SpaceMouseButtons {
-        buttonBits.reduce(into: []) { held, entry in
-            if (0..<64).contains(entry.key), bitmap & 1 << UInt64(entry.key) != 0 { held.insert(entry.value) }
-        }
+    /// The name of one button, as printed on the key.
+    public var name: String {
+        let names = ["1 (left)", "2 (right)", "1", "2", "3", "4", "MENU", "FIT", "T", "R", "F", "Roll", "ESC", "SHIFT",
+                     "CTRL", "ALT", "Rotation lock", "5", "6", "7", "8", "9", "10", "11", "12", "L", "B", "BK",
+                     "Roll back", "ISO1", "ISO2", "ENTER", "DEL", "TAB", "SPACE", "V1", "V2", "V3", "+", "−",
+                     "DOMINANT", "PAN/ZOOM", "CONFIG"]
+        return each.map { names[$0.rawValue.trailingZeroBitCount] }.joined(separator: " + ")
     }
 }
 
-/// Decodes the input reports of the models in `SpaceMouseModel.known`. From Kugelblitz's copy (itself ported from
-/// stagehand's `SpaceMouseReport` via Spacer), with stagehand's battery, serial number and unknown bits. The report buffer includes the report ID as byte 0.
+/// Decodes the input reports of every SpaceMouse model. From Kugelblitz's copy (itself ported from stagehand's
+/// `SpaceMouseReport` via Spacer), with stagehand's battery, serial number and unknown bits. The report buffer includes
+/// the report ID as byte 0.
 public enum SpaceMouseReport {
     public static let translationReportID: UInt8 = 1
     public static let rotationReportID: UInt8 = 2
     public static let buttonReportID: UInt8 = 3
-    /// The SpaceMouse Wireless's battery (`17 <percent> <flags>`, stagehand ADR-0090).
+    /// The battery of the wireless models (`17 <percent> <flags>`, stagehand ADR-0090).
     public static let batteryReportID: UInt8 = 0x17
     /// Vendor feature report with the serial number of the SpaceMouse Wireless and the Compact (`serialFeatureReportID`).
     public static let serialReportID: UInt8 = 0x08
@@ -149,9 +184,15 @@ public enum SpaceMouseReport {
         return bytes.dropFirst().prefix(8).enumerated().reduce(0) { $0 | UInt64($1.element) << UInt64(8 * $1.offset) }
     }
 
+    /// The bits set in report 3, all of them (the Enterprise's reach bit 175); nil for other reports.
+    public static func buttonBits(_ bytes: UnsafeBufferPointer<UInt8>) -> [Int]? {
+        guard bytes.count >= 2, bytes[0] == buttonReportID else { return nil }
+        return (0..<(bytes.count - 1) * 8).filter { bytes[1 + $0 / 8] & UInt8(1 << ($0 % 8)) != 0 }
+    }
+
     /// Buttons held according to report 3, with the model's bits; nil for other reports.
     public static func buttons(_ bytes: UnsafeBufferPointer<UInt8>, model: SpaceMouseModel) -> SpaceMouseButtons? {
-        buttonBitmap(bytes).map(model.buttons)
+        buttonBits(bytes).map { model.buttons(bits: $0) }
     }
 
     /// The lowest bit set in report 3 that stands for no button of `model`: a key the catalog does not know yet, for a

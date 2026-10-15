@@ -126,8 +126,8 @@ struct SpaceMouseReportExtrasTests {
         #expect(pro.left == .menu && pro.right == .fit)
         #expect(SpaceMouseModel.spaceMousePro.asTwoButtons([.menu, .key1]) == .left)
         #expect(SpaceMouseModel.compact.asTwoButtons([.left, .right]) == [.left, .right])
-        #expect(SpaceMouseModel.known.allSatisfy { $0.hasStatusLED })
-        #expect(SpaceMouseModel.known.filter(\.statusLEDNeedsCable) == [.spaceMouseWireless])
+        #expect(SpaceMouseModel.known.filter { !$0.hasStatusLED } == [.spacePilot])
+        #expect(SpaceMouseModel.known.filter(\.statusLEDNeedsCable) == [.spaceMouseWireless, .spaceMouseProWireless])
     }
 }
 
@@ -137,8 +137,8 @@ struct SpaceMouseModelTests {
         #expect(SpaceMouseModel.matching(vendorID: 0x046D, productID: 0xC626) == .spaceNavigator)
         #expect(SpaceMouseModel.matching(vendorID: 0x046D, productID: 0xC62B) == .spaceMousePro)
         #expect(SpaceMouseModel.matching(vendorID: 0x256F, productID: 0xC63A) == .spaceMouseWireless)
-        // The SpaceMouse Pro Wireless and the Universal Receiver are other devices.
-        #expect(SpaceMouseModel.matching(vendorID: 0x256F, productID: 0xC631) == nil)
+        // The SpaceMouse Pro Wireless is another model; the Universal Receiver is none of its own (ADR-0005).
+        #expect(SpaceMouseModel.matching(vendorID: 0x256F, productID: 0xC631) == .spaceMouseProWirelessCable)
         #expect(SpaceMouseModel.matching(vendorID: 0x256F, productID: 0xC652) == nil)
         // Another Logitech device is no SpaceMouse (ADR-0003).
         #expect(SpaceMouseModel.matching(vendorID: 0x046D, productID: 0xC635) == nil)
