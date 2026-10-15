@@ -74,7 +74,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 item.target = self
                 item.representedObject = device.id
                 item.state = device.enabled ? .on : .off
-                item.toolTip = device.id
+                // A model nobody here has checked at a device (ADR-0005) says so.
+                item.toolTip = device.knowledge == nil || device.knowledge == .checked
+                    ? device.id : device.id + "\n" + String(localized: "Not yet checked at a device")
                 menu.addItem(item)
             }
         }

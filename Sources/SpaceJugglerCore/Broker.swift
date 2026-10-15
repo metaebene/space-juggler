@@ -10,6 +10,7 @@ public final class Broker {
         let connection: LineConnection<BrokerMessage, ClientMessage>
         var name = "?"
         var greeted = false
+        var protocolVersion = 1
         var claimant: Claimant?
     }
 
@@ -77,6 +78,8 @@ public final class Broker {
         devices.isEnabled = { [weak self] in self?.isEnabled($0) ?? true }
         devices.onAxes = { [weak self] device, axes in self?.toHolder(.axes(device: device, axes: axes)) }
         devices.onButtons = { [weak self] device, held in self?.toHolder(.buttons(device: device, held: held)) }
+        devices.onReport = { [weak self] device, bytes in self?.toHolder(.report(device: device, bytes: bytes)) }
+        devices.wantsReports = { [weak self] in self?.holderWantsReports ?? false }
         devices.onChange = { [weak self] in
             guard let self else { return }
             let list = devices.list
@@ -91,7 +94,7 @@ public final class Broker {
         driver.onButtons = { [weak self] bits in
             guard let self, let device = driverDevice else { return }
             // The driver's bitmap in the device's numbering, named by the model of the device it is put down to.
-            let held = device.model?.buttons(UInt64(bits)) ?? []
+            let held = devices.model(of: device.id)?.buttons(UInt64(bits)) ?? []
             toHolder(.buttons(device: device.id, held: held))
         }
         if usesDevices {
@@ -181,6 +184,7 @@ public final class Broker {
         case .hello(let hello):
             clients[id]?.name = hello.name
             clients[id]?.greeted = true
+            clients[id]?.protocolVersion = hello.protocolVersion
             connection.send(.welcome(version: version, protocolVersion: SpaceJuggler.protocolVersion))
             connection.send(.devices(devices.list))
             if hello.protocolVersion != SpaceJuggler.protocolVersion { say("\(hello.name) speaks protocol \(hello.protocolVersion)") }
@@ -203,6 +207,10 @@ public final class Broker {
             } else if let failure = devices.setLED(on, device: device) {
                 say("LED \(device) for \(clients[id]?.name ?? "?"): \(failure)")
             }
+        case .describe(let device):
+            devices.describe(device) { [weak self] description in
+                self?.clients[id]?.connection.send(.description(description))
+            }
         case .status:
             connection.send(.status(status))
         case .takeOver(let candidate):
@@ -224,7 +232,20 @@ public final class Broker {
 
     private func toHolder(_ message: BrokerMessage) {
         guard let holder, let client = clients[holder] else { return }
-        client.connection.send(message)
+        switch message {
+        case .buttons(let device, let held) where client.protocolVersion < 2:
+            // Protocol 1 reads the button set as a UInt32 (ADR-0005).
+            client.connection.send(.buttons(device: device, held: held.intersection(.protocol1)))
+        case .report where client.claimant?.claim.raw != true:
+            break
+        default:
+            client.connection.send(message)
+        }
+    }
+
+    /// The holder asked for raw input reports (a probe, ADR-0006).
+    private var holderWantsReports: Bool {
+        holder.flatMap { clients[$0]?.claimant?.claim.raw } ?? false
     }
 
     // MARK: - Arbitration

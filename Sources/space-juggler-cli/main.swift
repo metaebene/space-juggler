@@ -6,9 +6,11 @@ import SpaceJugglerCore
 /// Diagnosis and tests for Space Juggler (docs/spike.md):
 ///   space-juggler-cli status
 ///   space-juggler-cli client --name NAME [--app BUNDLE-ID]... [--background] [--version N] [--seconds S] [--quiet]
-///                            [--launch-app PATH]      (default: start `space-juggler-cli broker` when nobody answers)
+///                            [--launch-app PATH] [--raw]  (default: start `space-juggler-cli broker` when nobody
+///                                                         answers; --raw prints every input report, ADR-0006)
 ///   space-juggler-cli broker [--version N] [--linger S] [--no-devices]
 ///   space-juggler-cli led DEVICE-ID on|off
+///   space-juggler-cli describe DEVICE-ID         (registry, report descriptor, feature reports; ADR-0006)
 /// `SPACE_JUGGLER_HOME` moves lock, socket and log out of `~/Library/Application Support/Space Juggler`.
 
 let executablePath = Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? CommandLine.arguments[0]
@@ -32,7 +34,7 @@ struct Options {
                 continue
             }
             let key = String(argument.dropFirst(2))
-            if ["background", "no-devices", "quiet"].contains(key) {
+            if ["background", "no-devices", "quiet", "raw"].contains(key) {
                 flags.insert(key)
             } else if let value = iterator.next() {
                 values[key, default: []].append(value)
@@ -92,7 +94,8 @@ MainActor.assumeIsolated {
     case "client":
         let name = options.values["name"]?.last ?? "client-\(getpid())"
         let version = options.int("version", SpaceJuggler.version)
-        let claim = Claim(apps: options.values["app"] ?? [], background: options.flags.contains("background"))
+        let claim = Claim(apps: options.values["app"] ?? [], background: options.flags.contains("background"),
+                          raw: options.flags.contains("raw") ? true : nil)
         let launcher: SpaceJugglerConnection.Launcher = options.values["launch-app"]?.last.map { .app(URL(fileURLWithPath: $0)) }
             ?? .executable(path: executablePath, arguments: ["broker", "--version", String(version)])
         let client = SpaceJugglerConnection(name: name, claim: claim, launcher: launcher, place: place, version: version)
@@ -111,6 +114,9 @@ MainActor.assumeIsolated {
             case .buttons(let held, let device): say("[\(name)] \(device) buttons \(held.rawValue) (all: \(client.heldButtons.rawValue))")
             case .unavailable(let reason): say("[\(name)] \(reason)")
             }
+        }
+        client.onReport = { bytes, device in
+            say("[\(name)] \(device) report " + bytes.map { String(format: "%02x", $0) }.joined(separator: " "))
         }
         client.start()
         keptAlive.append(client)
@@ -147,8 +153,28 @@ MainActor.assumeIsolated {
             exit(1)
         }
 
+    case "describe":
+        guard options.positional.count == 1 else {
+            print("usage: space-juggler-cli describe DEVICE-ID")
+            exit(2)
+        }
+        ask(.describe(device: options.positional[0])) { message in
+            guard case .description(let description) = message else { return false }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            print(String(decoding: try! encoder.encode(description), as: UTF8.self))
+            if let parsed = HIDReportDescriptor(description.reportDescriptor) {
+                for report in parsed.reports {
+                    print(String(format: "%@ report 0x%02X: %d bytes", report.kind.rawValue, report.id, report.length))
+                }
+                print("axes ±\(parsed.axisLogicalMaximum ?? 0)\(parsed.axesDeclaredRelative ? " (declared relative)" : ""), "
+                      + "buttons \(parsed.buttonUsages), LED \(parsed.hasLED)")
+            }
+            return true
+        }
+
     default:
-        print("usage: space-juggler-cli status | client … | broker … | led DEVICE on|off")
+        print("usage: space-juggler-cli status | client … | broker … | led DEVICE on|off | describe DEVICE")
         exit(2)
     }
 }

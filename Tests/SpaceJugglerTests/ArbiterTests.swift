@@ -108,3 +108,43 @@ struct MessageTests {
         #expect(decoder.feed(messages.map { LineEncoder.encode($0) }.reduce(Data(), +)) == messages)
     }
 }
+
+struct ProbeMessageTests {
+    /// Protocol 2 (ADR-0005, ADR-0006): raw reports, descriptions, buttons beyond 32 bits.
+    @Test func probeMessagesSurviveTheWire() {
+        var decoder = LineDecoder<BrokerMessage>()
+        let messages: [BrokerMessage] = [
+            .report(device: "port:1", bytes: [0x03, 0x01, 0x00]),
+            .buttons(device: "port:1", held: [.space, .tab, .key1]),
+            .description(DeviceDescription(device: "port:1", properties: ["Product": "SpaceMouse Compact"],
+                                           reportDescriptor: [0x05, 0x01], featureReports: [.init(id: 8, bytes: [8, 0x53]),
+                                                                                            .init(id: 5, error: "GET failed")],
+                                           featureReportsVia: "HID device")),
+        ]
+        #expect(decoder.feed(messages.map { LineEncoder.encode($0) }.reduce(Data(), +)) == messages)
+        var clientDecoder = LineDecoder<ClientMessage>()
+        let asked: [ClientMessage] = [.describe(device: "port:1"), .claim(Claim(apps: ["me.metaebene.SpaceMouseProbe"], raw: true))]
+        #expect(clientDecoder.feed(asked.map { LineEncoder.encode($0) }.reduce(Data(), +)) == asked)
+    }
+
+    /// A device from a broker of protocol 1 lacks the new fields; one of protocol 2 brings them.
+    @Test func devicesOfBothProtocols() throws {
+        let old = #"{"id":"port:1","vendorID":9583,"productID":50741,"name":"SpaceMouse Compact","transport":"USB","enabled":true,"state":"open"}"#
+        let device = try JSONDecoder().decode(SpaceMouseDevice.self, from: Data(old.utf8))
+        #expect(device.buttons == nil && device.knowledge == nil)
+        #expect(device.twoButtons.left == .left)
+        #expect(device.canLightLED)
+        let guessed = SpaceMouseDevice(id: "port:2", vendorID: 0x256F, productID: 0xC6FF, name: "Future", transport: "USB",
+                                       knowledge: .guessed, buttons: [.menu, .fit, .key1], hasLED: false)
+        #expect(guessed.twoButtons.left == .menu)
+        #expect(!guessed.canLightLED)
+        let wireless = SpaceMouseDevice(id: "bt:1", vendorID: 0x256F, productID: 0xC63A, name: "SpaceMouse Wireless",
+                                        transport: "Bluetooth", hasLED: true)
+        #expect(!wireless.canLightLED)
+    }
+
+    @Test func receiverSlotsHaveIdentitiesOfTheirOwn() {
+        #expect(Devices.identity(serial: nil, transport: "USB", address: nil, vendor: 0x256F, product: 0xC652,
+                                 location: 0x0211_0000, slot: 2) == "port:256f:c652@02110000/2")
+    }
+}

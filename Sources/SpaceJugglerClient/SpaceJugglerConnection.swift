@@ -39,6 +39,9 @@ public final class SpaceJugglerConnection {
     }
 
     public var onEvent: (Event) -> Void = { _ in }
+    /// Every input report as it came, report ID first, while this client holds and its claim asks for them
+    /// (`Claim.raw`, ADR-0006).
+    public var onReport: ([UInt8], _ device: String) -> Void = { _, _ in }
     public private(set) var devices: [SpaceMouseDevice] = []
     public private(set) var holds = false
     public private(set) var brokerVersion: Int?
@@ -54,6 +57,7 @@ public final class SpaceJugglerConnection {
     private var lastLaunch: Date?
     private var held: [String: SpaceMouseButtons] = [:]
     private var moved: Set<String> = []
+    private var describing: [String: [(DeviceDescription) -> Void]] = [:]
 
     public init(name: String, claim: Claim, launcher: Launcher = .bundled, place: BrokerPlace = .standard,
                 version: Int = SpaceJuggler.version) {
@@ -64,14 +68,15 @@ public final class SpaceJugglerConnection {
         self.version = version
     }
 
-    /// Whether a SpaceMouse of a known model is attached (cable, receiver or Bluetooth), from the I/O Registry alone,
-    /// without Space Juggler and without opening anything: without one, a failure to reach Space Juggler is nothing to
-    /// tell the user about (Kugelblitz ADR-0226).
+    /// Whether a SpaceMouse is attached (cable, receiver or Bluetooth; a Multi-axis Controller of Logitech or
+    /// 3Dconnexion, ADR-0005), from the I/O Registry alone, without Space Juggler and without opening anything: without
+    /// one, a failure to reach Space Juggler is nothing to tell the user about (Kugelblitz ADR-0226).
     public nonisolated static var isSpaceMouseAttached: Bool {
-        SpaceMouseModel.known.contains { model in
+        SpaceMouseModel.vendorIDs.contains { vendor in
             let matching = IOServiceMatching(kIOHIDDeviceKey) as NSMutableDictionary
-            matching[kIOHIDVendorIDKey] = model.vendorID
-            matching[kIOHIDProductIDKey] = model.productID
+            matching[kIOHIDVendorIDKey] = vendor
+            matching[kIOHIDDeviceUsagePageKey] = kHIDPage_GenericDesktop
+            matching[kIOHIDDeviceUsageKey] = kHIDUsage_GD_MultiAxisController
             var iterator: io_iterator_t = 0
             guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else { return false }
             defer { IOObjectRelease(iterator) }
@@ -89,14 +94,17 @@ public final class SpaceJugglerConnection {
     /// FIT (`SpaceMouseModel.twoButtons`).
     public var heldTwoButtons: SpaceMouseButtons {
         held.reduce([]) { result, entry in
-            guard let model = devices.first(where: { $0.id == entry.key })?.model else { return result }
-            return result.union(model.asTwoButtons(entry.value))
+            guard let two = devices.first(where: { $0.id == entry.key })?.twoButtons else { return result }
+            var both = result
+            if entry.value.contains(two.left) { both.insert(.left) }
+            if entry.value.contains(two.right) { both.insert(.right) }
+            return both
         }
     }
 
     /// Switches the LED of every device that has one (and can light it now).
     public func setLEDs(_ on: Bool) {
-        for device in devices where device.model?.hasStatusLED == true && !(device.model!.statusLEDNeedsCable && device.isBluetooth) {
+        for device in devices where device.canLightLED {
             setLED(on, device: device.id)
         }
     }
@@ -122,6 +130,21 @@ public final class SpaceJugglerConnection {
 
     public func setLED(_ on: Bool, device: String) {
         connection?.send(.setLED(device: device, on: on))
+    }
+
+    /// Asks Space Juggler for everything it can read about a device without changing it (ADR-0006). `completion` gets
+    /// the answer, or a description with an error when Space Juggler is not reached or too old (protocol 1).
+    public func describe(device: String, completion: @escaping (DeviceDescription) -> Void) {
+        guard let connection else { return completion(DeviceDescription(device: device, error: "Space Juggler not reached")) }
+        describing[device, default: []].append(completion)
+        connection.send(.describe(device: device))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, let waiting = self.describing[device], !waiting.isEmpty else { return }
+                self.describing[device] = nil
+                waiting.forEach { $0(DeviceDescription(device: device, error: "no answer from Space Juggler")) }
+            }
+        }
     }
 
     // MARK: - Connecting
@@ -152,6 +175,11 @@ public final class SpaceJugglerConnection {
     private func lost() {
         connection = nil
         brokerVersion = nil
+        let waiting = describing
+        describing = [:]
+        for (device, completions) in waiting {
+            completions.forEach { $0(DeviceDescription(device: device, error: "Space Juggler gone")) }
+        }
         if holds { setHolds(false) }
         onEvent(.disconnected)
         guard running else { return }
@@ -225,6 +253,12 @@ public final class SpaceJugglerConnection {
             guard holds else { return }
             held[device] = buttons.isEmpty ? nil : buttons
             onEvent(.buttons(buttons, device: device))
+        case .report(let device, let bytes):
+            guard holds else { return }
+            onReport(bytes, device)
+        case .description(let description):
+            let waiting = describing.removeValue(forKey: description.device) ?? []
+            waiting.forEach { $0(description) }
         case .status, .handingOver:
             break
         }

@@ -5,9 +5,9 @@ import Foundation
 public enum SpaceJuggler {
     /// Version of the broker built from this package. A running broker hands over only to a higher one; a client
     /// that meets a lower one starts its own. Raise it with every release of the package.
-    public static let version = 3
+    public static let version = 4
     /// Raised with every change of the messages that an older peer cannot read.
-    public static let protocolVersion = 1
+    public static let protocolVersion = 2
     public static let bundleIdentifier = "me.metaebene.SpaceJuggler"
     public static let appName = "Space Juggler"
 }
@@ -24,11 +24,14 @@ public struct Claim: Codable, Sendable, Equatable {
     /// (Stagehand, which claims its own app only so that "learning" a trigger works while it is in front; Tim,
     /// 2026-10-14: Stagehand always last). nil = false.
     public var backgroundLast: Bool?
+    /// While holding, also get every input report as it came (`report`), for a probe (ADR-0006). nil = false.
+    public var raw: Bool?
 
-    public init(apps: [String], background: Bool = false, backgroundLast: Bool? = nil) {
+    public init(apps: [String], background: Bool = false, backgroundLast: Bool? = nil, raw: Bool? = nil) {
         self.apps = apps
         self.background = background
         self.backgroundLast = backgroundLast
+        self.raw = raw
     }
 }
 
@@ -54,10 +57,19 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
     public var state: String
     /// The LED as last written (the device does not report it); nil = unknown.
     public var led: Bool?
+    /// What the broker knows of the model (ADR-0005); nil from a broker of protocol 1.
+    public var knowledge: SpaceMouseModel.Knowledge?
+    /// Every button the device has; nil from a broker of protocol 1.
+    public var buttons: SpaceMouseButtons?
+    /// The axes' raw value at full deflection; nil from a broker of protocol 1.
+    public var axisFullScale: Int?
+    /// Whether it has an LED (output report 4); nil from a broker of protocol 1.
+    public var hasLED: Bool?
 
     public init(id: String, vendorID: Int, productID: Int, name: String, transport: String, serialNumber: String? = nil,
                 bluetoothAddress: String? = nil, locationID: Int? = nil, battery: Int? = nil, charging: Bool? = nil,
-                enabled: Bool = true, state: String = "closed", led: Bool? = nil) {
+                enabled: Bool = true, state: String = "closed", led: Bool? = nil, knowledge: SpaceMouseModel.Knowledge? = nil,
+                buttons: SpaceMouseButtons? = nil, axisFullScale: Int? = nil, hasLED: Bool? = nil) {
         self.id = id
         self.vendorID = vendorID
         self.productID = productID
@@ -71,10 +83,66 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
         self.enabled = enabled
         self.state = state
         self.led = led
+        self.knowledge = knowledge
+        self.buttons = buttons
+        self.axisFullScale = axisFullScale
+        self.hasLED = hasLED
     }
 
+    /// The catalog's entry; nil for a model the catalog lacks (`buttons`, `hasLED` tell about it).
     public var model: SpaceMouseModel? { SpaceMouseModel.matching(vendorID: vendorID, productID: productID) }
     public var isBluetooth: Bool { transport.caseInsensitiveCompare("Bluetooth") == .orderedSame }
+
+    /// The two buttons a program uses that only knows two: left and right where the device has them, else MENU and
+    /// FIT (`SpaceMouseModel.twoButtons`).
+    public var twoButtons: (left: SpaceMouseButtons, right: SpaceMouseButtons) {
+        let all = buttons ?? model?.buttons ?? [.left, .right]
+        return all.contains(.left) || !all.contains(.menu) ? (.left, .right) : (.menu, .fit)
+    }
+
+    /// Whether its LED can be switched now (it has one, and it lights on this transport).
+    public var canLightLED: Bool {
+        guard hasLED ?? model?.hasStatusLED ?? false else { return false }
+        return !(isBluetooth && model?.statusLEDNeedsCable == true)
+    }
+}
+
+/// Everything Space Juggler can tell about a device without changing it (ADR-0006): IORegistry properties, the report
+/// descriptor and every feature report it declares, read with GET.
+public struct DeviceDescription: Codable, Sendable, Equatable {
+    public struct FeatureReport: Codable, Sendable, Equatable {
+        public var id: Int
+        /// As read, report ID first; nil when the GET failed.
+        public var bytes: [UInt8]?
+        public var error: String?
+
+        public init(id: Int, bytes: [UInt8]? = nil, error: String? = nil) {
+            self.id = id
+            self.bytes = bytes
+            self.error = error
+        }
+    }
+
+    /// The device's identity (ADR-0003).
+    public var device: String
+    /// IORegistry properties of the HID device and its USB interface, as text.
+    public var properties: [String: String]
+    public var reportDescriptor: [UInt8]
+    public var featureReports: [FeatureReport]
+    /// Through what the feature reports were read: "HID device", "control pipe" or nil.
+    public var featureReportsVia: String?
+    /// Why there is no description.
+    public var error: String?
+
+    public init(device: String, properties: [String: String] = [:], reportDescriptor: [UInt8] = [],
+                featureReports: [FeatureReport] = [], featureReportsVia: String? = nil, error: String? = nil) {
+        self.device = device
+        self.properties = properties
+        self.reportDescriptor = reportDescriptor
+        self.featureReports = featureReports
+        self.featureReportsVia = featureReportsVia
+        self.error = error
+    }
 }
 
 public struct Hello: Codable, Sendable, Equatable {
@@ -103,6 +171,8 @@ public enum ClientMessage: Codable, Sendable, Equatable {
     case claim(Claim)
     /// Any client may switch a device's LED (ADR-0003).
     case setLED(device: String, on: Bool)
+    /// Any client may ask for a device's description (device data, ADR-0003, ADR-0006). Protocol 2.
+    case describe(device: String)
     case status
     /// A broker of `version` asks the running one to hand over.
     case takeOver(version: Int)
@@ -118,6 +188,10 @@ public enum BrokerMessage: Codable, Sendable, Equatable {
     case axes(device: String, axes: SpaceMouseAxes)
     /// The buttons held on one device, by what they are.
     case buttons(device: String, held: SpaceMouseButtons)
+    /// An input report as it came, report ID first, to a holder whose claim asks for it (`Claim.raw`). Protocol 2.
+    case report(device: String, bytes: [UInt8])
+    /// Answer to `describe`. Protocol 2.
+    case description(DeviceDescription)
     case status(BrokerStatus)
     /// Answer to `takeOver`: the broker leaves (true) or stays because it is as new or newer (false).
     case handingOver(Bool)
