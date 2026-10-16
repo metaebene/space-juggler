@@ -29,7 +29,7 @@ struct ContentView: View {
             if let session = probe.selected {
                 TestView(session: session).id(ObjectIdentifier(session))
             } else {
-                Text("SpaceMouse Probe guides you through every key and every movement of your SpaceMouse and writes down what it sends, so that Space Juggler can support it.")
+                Text("Space Probe guides you through every key and every movement of your SpaceMouse and writes down what it sends, so that Space Juggler can support it.")
                     .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 360).padding()
             }
         }

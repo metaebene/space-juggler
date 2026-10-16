@@ -22,5 +22,5 @@ Each step ends with tests passing and, where it says so, a check by Tim at the d
 7. **Public** (done 2026-10-14: github.com/metaebene/space-juggler, MIT, tag 0.2.0; findings stay in Stagehand for now) — licence, findings moved here and reviewed (no vendor header text), first tagged release.
 8. **Every model** (branch `model-probe`, 2026-10-15; ADR-0005, ADR-0006) — public sources in `docs/models.md`; the
    catalog takes every published model and recognises unknown ones by their report descriptor; protocol 2
-   (`describe`, raw reports), version 4; `SpaceMouseKitUI`; SpaceMouse Probe. **Tim:** the probe at the Compact, the
+   (`describe`, raw reports), version 4; `SpaceMouseKitUI`; Space Probe. **Tim:** the probe at the Compact, the
    SpaceNavigator, the Pro and the Wireless (keys, cap, LED, label; report on GitHub), then a signed probe in a release.

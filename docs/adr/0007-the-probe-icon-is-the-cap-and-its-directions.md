@@ -1,4 +1,4 @@
-# ADR-0007: SpaceMouse Probe's icon is the cap and its directions, as Icon Composer layers
+# ADR-0007: Space Probe's icon is the cap and its directions, as Icon Composer layers
 
 - Status: accepted (Tim, 2026-10-16)
 - Date: 2026-10-16
@@ -6,7 +6,7 @@
 
 ## Context
 
-- Tim (2026-10-16): an Icon Composer icon for SpaceMouse Probe, perhaps the drawing the probe shows of the cap.
+- Tim (2026-10-16): an Icon Composer icon for Space Probe, perhaps the drawing the probe shows of the cap.
 - That drawing (`SpaceMouseTopView`) is a SpaceMouse from above: body, cap, side buttons, cable, and the twelve
   directions as SF Symbols. SF Symbols may not be used in app icons; side buttons and cable are too small at icon size.
 - macOS 26 shows icons as layered Liquid Glass from an Icon Composer `.icon` package; `actool` compiles it into
@@ -20,7 +20,7 @@
 - `Scripts/make-probe-icon.swift` draws three 1024×1024 layers and writes `App/Probe/AppIcon.icon`: `directions`
   (glass, specular), `cap` (no glass, neutral shadow), `body` (opaque). The package is committed; run the script again
   after changing it.
-- `Scripts/build-spacemouse-probe.sh` compiles it with `actool` on every build; `Info.plist` names `AppIcon`.
+- `Scripts/build-space-probe.sh` compiles it with `actool` on every build; `Info.plist` names `AppIcon`.
 
 ## Consequences
 
@@ -33,5 +33,5 @@
 
 ## Enforced and verified by
 
-- `Scripts/make-probe-icon.swift`, `App/Probe/AppIcon.icon`, `Scripts/build-spacemouse-probe.sh`, `App/Probe/Info.plist`.
+- `Scripts/make-probe-icon.swift`, `App/Probe/AppIcon.icon`, `Scripts/build-space-probe.sh`, `App/Probe/Info.plist`.
 - 2026-10-16: `actool` compiles the package without warnings; the `.icns` shows the squircle with the glass marks.

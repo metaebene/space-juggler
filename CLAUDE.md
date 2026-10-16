@@ -17,8 +17,8 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
 - `Sources/SpaceJuggler` – die App (Menüleiste); `Scripts/build-space-juggler.sh` baut und signiert `Space Juggler.app`.
 - `Sources/space-juggler-cli` – Status, Test-Clients (`--raw`), `describe`, Broker ohne Oberfläche;
   `Scripts/spike-scenario.sh`, Läufe in `docs/spike.md`.
-- `Sources/SpaceMouseProbe` – SpaceMouse Probe (Arbeitstitel, ADR-0006): fragt am Gerät Tasten, Achsen, LED und Etikett
-  ab und schreibt einen Bericht fürs GitHub-Issue; `Scripts/build-spacemouse-probe.sh` (mit Space Juggler.app darin).
+- `Sources/SpaceProbe` – Space Probe (ADR-0006; bis 2026-10-16 „SpaceMouse Probe“): fragt am Gerät Tasten, Achsen, LED und Etikett
+  ab und schreibt einen Bericht fürs GitHub-Issue; `Scripts/build-space-probe.sh` (mit Space Juggler.app darin).
 - Entscheidungen: `docs/adr/`. Hardware-Erkenntnisse stehen noch in Stagehand (`docs/spacemouse-findings.md`).
 
 ## Regeln (ADR-0001 … 0006)
@@ -45,6 +45,6 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
   SemVer-Tag (`git tag -a x.y.z`, pushen; nur den liest SwiftPM) **und** ein GitHub-Release zum Tag mit Release Notes
   für Menschen (`gh release create x.y.z --repo metaebene/space-juggler`). Die Apps ziehen mit
   `swift package update space-juggler` nach und committen ihr `Package.resolved`.
-- SpaceMouse Probe geht mit jedem Release als notarisiertes Disk-Image an den GitHub-Release:
-  `Scripts/release-spacemouse-probe.sh x.y.z` (Developer ID, Profil `stagehand-notary`) → `dist/`, dann
+- Space Probe geht mit jedem Release als notarisiertes Disk-Image an den GitHub-Release:
+  `Scripts/release-space-probe.sh x.y.z` (Developer ID, Profil `stagehand-notary`) → `dist/`, dann
   `gh release upload`.

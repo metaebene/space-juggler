@@ -13,7 +13,7 @@ updating any one app brings new device support to all of them. Nothing extra to 
 running, Space Juggler becomes the driver's one client and hands the device back to the driver's own apps in front.
 
 The package also contains **SpaceMouseKit**, the model catalog and report decoding, usable on its own, and
-**SpaceMouse Probe**, a small app that finds out what a SpaceMouse model sends (see below).
+**Space Probe**, a small app that finds out what a SpaceMouse model sends (see below).
 
 ## Supported devices
 
@@ -43,13 +43,13 @@ here has seen them do so:
 Any other SpaceMouse (a Multi-axis Controller of Logitech or 3Dconnexion) is taken as well: its axes from what it
 declares, its keys guessed.
 
-## Help: run SpaceMouse Probe
+## Help: run Space Probe
 
-If you have a SpaceMouse that is not in the first table, **SpaceMouse Probe** asks you to press every key and move the
+If you have a SpaceMouse that is not in the first table, **Space Probe** asks you to press every key and move the
 cap every way, and writes down what the device sends. It opens a GitHub issue with the report (or saves it as a file);
-that is how a model becomes checked. **Download:** `SpaceMouseProbe-<version>.dmg` from the
+that is how a model becomes checked. **Download:** `SpaceProbe-<version>.dmg` from the
 [latest release](https://github.com/metaebene/space-juggler/releases/latest) (signed and notarized, macOS 14 or later;
-English and German), or build it with `Scripts/build-spacemouse-probe.sh`. It never changes your device except for switching its LED when you ask, and works next to
+English and German), or build it with `Scripts/build-space-probe.sh`. It never changes your device except for switching its LED when you ask, and works next to
 3Dconnexion's driver (for keys and axes, quit 3Dconnexion's helper while it runs).
 
 ## Using it in an app
@@ -91,7 +91,7 @@ starts it through Launch Services when nobody answers.
 - `SpaceJugglerCore`, `SpaceJuggler` — the broker and its menu bar app.
 - `space-juggler-cli` — status, test clients (`--raw` prints every input report), `describe` (report descriptor and
   feature reports of a device) and a broker without UI.
-- `SpaceMouseProbe` — the probe app (ADR-0006).
+- `SpaceProbe` — the probe app (ADR-0006).
 
 Design decisions: [docs/adr](docs/adr/README.md). Test runs: [docs/spike.md](docs/spike.md).
 

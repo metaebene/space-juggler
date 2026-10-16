@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import SpaceJugglerClient
-@testable import SpaceMouseProbe
+@testable import SpaceProbe
 
 @MainActor
 struct ProbeSessionTests {

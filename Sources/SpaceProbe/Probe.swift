@@ -22,8 +22,8 @@ final class Probe {
     init() {
         let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/\(SpaceJuggler.appName).app")
         connection = SpaceJugglerConnection(
-            name: "SpaceMouse Probe",
-            claim: Claim(apps: [Bundle.main.bundleIdentifier ?? "me.metaebene.SpaceMouseProbe"], raw: true),
+            name: "Space Probe",
+            claim: Claim(apps: [Bundle.main.bundleIdentifier ?? "me.metaebene.SpaceProbe"], raw: true),
             // Run outside its bundle (swift run), it uses whichever Space Juggler runs.
             launcher: FileManager.default.fileExists(atPath: bundled.path) ? .app(bundled) : .none)
         connection.onEvent = { [weak self] in self?.handle($0) }
@@ -93,9 +93,9 @@ final class Probe {
 
     // MARK: - Report
 
-    /// Where reports are put down: `~/Library/Application Support/SpaceMouse Probe/Reports`.
+    /// Where reports are put down: `~/Library/Application Support/Space Probe/Reports`.
     static var reportsFolder: URL {
-        URL.applicationSupportDirectory.appendingPathComponent("SpaceMouse Probe/Reports", isDirectory: true)
+        URL.applicationSupportDirectory.appendingPathComponent("Space Probe/Reports", isDirectory: true)
     }
 
     /// Makes the report and puts it down in `reportsFolder`.

@@ -1,6 +1,6 @@
-# ADR-0006: SpaceMouse Probe asks at the device until a model is known
+# ADR-0006: Space Probe asks at the device until a model is known
 
-- Status: proposed (2026-10-15); the app's name is a working title
+- Status: proposed (2026-10-15); the app is called Space Probe since 2026-10-16 (before: SpaceMouse Probe, a working title)
 - Date: 2026-10-15
 - Related: ADR-0001 (only Space Juggler opens a SpaceMouse), ADR-0003 (device data to all), ADR-0005 (unknown models);
   `docs/models.md` ("Open at the device")
@@ -16,7 +16,7 @@
 
 ## Decision
 
-- **SpaceMouse Probe** is a small SwiftUI app for anyone with a SpaceMouse. It is a client of Space Juggler like the
+- **Space Probe** is a small SwiftUI app for anyone with a SpaceMouse. It is a client of Space Juggler like the
   others (embedded `Space Juggler.app`, a claim for its own app), so it never opens a device itself and works beside the
   other clients: while it is in front, it holds the SpaceMouse.
 - **Two additions to the protocol** (version 2):
@@ -37,7 +37,7 @@
   5. Label: the serial number and name printed on the device, if any (the report says this becomes public).
   6. Check: everything once more, each part changeable, notes added; then the report is created.
   Battery reports are recorded as they come (wireless models).
-- **The result is one JSON file** (`format: 1`), put down in `~/Library/Application Support/SpaceMouse Probe/Reports`,
+- **The result is one JSON file** (`format: 1`), put down in `~/Library/Application Support/Space Probe/Reports`,
   exported from there or posted: the report goes to the clipboard and a new issue opens with the device report form
   (`.github/ISSUE_TEMPLATE/device-report.yml`, on the default branch) on metaebene/space-juggler, where the user pastes
   it. GitHub refuses links as long as a report (tried 2026-10-16). Findings from it go into `docs/models.md` and the
@@ -61,7 +61,7 @@
 ## Enforced and verified by
 
 - `Broker` (`describe`, raw reports only to a raw holder), `WireTests`.
-- `Sources/SpaceMouseProbe`, `ProbeSessionTests`; `Scripts/build-spacemouse-probe.sh`; `Scripts/release-spacemouse-probe.sh`
+- `Sources/SpaceProbe`, `ProbeSessionTests`; `Scripts/build-space-probe.sh`; `Scripts/release-space-probe.sh`
   (universal, Developer ID, notarized disk image, as Space Glider's ADR-0016).
 - Release 0.4.0 (2026-10-16): notarization accepted (submission f9c6e492-9ef2-406c-b360-206e1ed76328), stapled; `spctl`
   accepts the image, the app and Space Juggler.app inside as "Notarized Developer ID"; 2.5 MB, SHA-256

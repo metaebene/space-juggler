@@ -123,7 +123,7 @@ struct ProbeMessageTests {
         ]
         #expect(decoder.feed(messages.map { LineEncoder.encode($0) }.reduce(Data(), +)) == messages)
         var clientDecoder = LineDecoder<ClientMessage>()
-        let asked: [ClientMessage] = [.describe(device: "port:1"), .claim(Claim(apps: ["me.metaebene.SpaceMouseProbe"], raw: true))]
+        let asked: [ClientMessage] = [.describe(device: "port:1"), .claim(Claim(apps: ["me.metaebene.SpaceProbe"], raw: true))]
         #expect(clientDecoder.feed(asked.map { LineEncoder.encode($0) }.reduce(Data(), +)) == asked)
     }
 

@@ -1,20 +1,20 @@
 #!/bin/zsh
-# Builds the release disk image of SpaceMouse Probe (ADR-0006), as Space Glider does (its ADR-0016): the universal app
+# Builds the release disk image of Space Probe (ADR-0006), as Space Glider does (its ADR-0016): the universal app
 # with Space Juggler.app inside, both signed with Developer ID Application, hardened runtime and a secure timestamp, in
-# a disk image with a link to /Applications; the image is signed, notarized and stapled → dist/SpaceMouseProbe-<version>.dmg.
-# Usage: Scripts/release-spacemouse-probe.sh VERSION [--allow-dirty] [--no-notarize]
+# a disk image with a link to /Applications; the image is signed, notarized and stapled → dist/SpaceProbe-<version>.dmg.
+# Usage: Scripts/release-space-probe.sh VERSION [--allow-dirty] [--no-notarize]
 #   VERSION: the release tag (x.y.z). --no-notarize stops after signing the image (nothing sent to Apple).
 set -euo pipefail
 
 ROOT="${0:A:h:h}"
 cd "$ROOT"
-VERSION="${1:?usage: Scripts/release-spacemouse-probe.sh VERSION [--allow-dirty] [--no-notarize]}"
+VERSION="${1:?usage: Scripts/release-space-probe.sh VERSION [--allow-dirty] [--no-notarize]}"
 shift
 IDENTITY="${IDENTITY:-Developer ID Application: Tim Francis Pritlove (MZ2D45J5VM)}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-stagehand-notary}"
-VOLUME="SpaceMouse Probe"
+VOLUME="Space Probe"
 STAGE="$ROOT/.build/release-probe"
-OUTPUT="$ROOT/dist/SpaceMouseProbe-$VERSION.dmg"
+OUTPUT="$ROOT/dist/SpaceProbe-$VERSION.dmg"
 
 ALLOW_DIRTY=0
 NOTARIZE=1
@@ -42,7 +42,7 @@ echo "== Universal app $VERSION"
 rm -rf "$STAGE"
 mkdir -p "$STAGE" "$ROOT/dist"
 APP=$(SIGN_IDENTITY="$IDENTITY" UNIVERSAL=1 TIMESTAMP=1 SHORT_VERSION="$VERSION" \
-  Scripts/build-spacemouse-probe.sh release "$STAGE" | tail -1)
+  Scripts/build-space-probe.sh release "$STAGE" | tail -1)
 ln -s /Applications "$STAGE/Applications"
 
 echo "== Disk image"

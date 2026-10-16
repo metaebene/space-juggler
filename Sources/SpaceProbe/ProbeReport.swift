@@ -1,7 +1,7 @@
 import Foundation
 import SpaceJugglerClient
 
-/// What SpaceMouse Probe found out about one device, as sent in a device report (ADR-0006, `format` 1). Bytes are
+/// What Space Probe found out about one device, as sent in a device report (ADR-0006, `format` 1). Bytes are
 /// written as hex, report ID first.
 struct ProbeReport: Codable {
     var format = 1

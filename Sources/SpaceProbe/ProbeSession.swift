@@ -177,7 +177,7 @@ final class ProbeSession: Identifiable {
         let parsed = descriptor
         let osVersion = ProcessInfo.processInfo.operatingSystemVersion
         return ProbeReport(
-            tool: "SpaceMouse Probe \(SpaceJuggler.version)", date: Date(),
+            tool: "Space Probe \(SpaceJuggler.version)", date: Date(),
             macOS: "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)",
             spaceJuggler: brokerVersion, driverRunning: driverRunning,
             device: .init(
