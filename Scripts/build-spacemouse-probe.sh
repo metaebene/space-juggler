@@ -2,7 +2,7 @@
 # Builds SpaceMouse Probe.app (ADR-0006): the SpaceMouseProbe product as an app bundle with Space Juggler.app inside
 # (Contents/Helpers, ADR-0002), both signed.
 # Usage: Scripts/build-spacemouse-probe.sh [debug|release] [output directory]
-# Environment as for build-space-juggler.sh: SIGN_IDENTITY (default "-", ad hoc), UNIVERSAL=1, TIMESTAMP=1.
+# Environment as for build-space-juggler.sh: SIGN_IDENTITY (default "-", ad hoc), UNIVERSAL=1, TIMESTAMP=1; SHORT_VERSION.
 # Prints the path of the bundle as its last line.
 set -euo pipefail
 cd "${0:A:h}/.."
@@ -18,7 +18,8 @@ APP="$OUT/SpaceMouse Probe.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Helpers"
 cp "$BIN/SpaceMouseProbe" "$APP/Contents/MacOS/SpaceMouseProbe"
-sed "s/__VERSION__/$VERSION/g" App/Probe/Info.plist > "$APP/Contents/Info.plist"
+# CFBundleShortVersionString: the release (SHORT_VERSION, x.y.z), else Space Juggler's version; CFBundleVersion: the latter.
+sed -e "s/__SHORT_VERSION__/${SHORT_VERSION:-$VERSION}/g" -e "s/__VERSION__/$VERSION/g" App/Probe/Info.plist > "$APP/Contents/Info.plist"
 cp -R App/Probe/de.lproj "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/en.lproj"
 JUGGLER=$(Scripts/build-space-juggler.sh "$CONFIG" "$APP/Contents/Helpers" | tail -1)
