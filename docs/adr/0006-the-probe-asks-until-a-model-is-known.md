@@ -61,5 +61,10 @@
 ## Enforced and verified by
 
 - `Broker` (`describe`, raw reports only to a raw holder), `WireTests`.
-- `Sources/SpaceMouseProbe`; `Scripts/build-spacemouse-probe.sh`.
+- `Sources/SpaceMouseProbe`, `ProbeSessionTests`; `Scripts/build-spacemouse-probe.sh`; `Scripts/release-spacemouse-probe.sh`
+  (universal, Developer ID, notarized disk image, as Space Glider's ADR-0016).
+- Release 0.4.0 (2026-10-16): notarization accepted (submission f9c6e492-9ef2-406c-b360-206e1ed76328), stapled; `spctl`
+  accepts the image, the app and Space Juggler.app inside as "Notarized Developer ID"; 2.5 MB, SHA-256
+  `51609a3a466caaed53d125e7f2fa3c8cccdef5aa9ac5c8a5e563826195ac1153`.
+- At the device (Tim, 2026-10-16): the steps at the SpaceMouse Compact; the report link was too long for GitHub.
 - Open: a report from a device nobody here owns.

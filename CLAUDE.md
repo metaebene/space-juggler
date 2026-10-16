@@ -45,3 +45,6 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
   SemVer-Tag (`git tag -a x.y.z`, pushen; nur den liest SwiftPM) **und** ein GitHub-Release zum Tag mit Release Notes
   für Menschen (`gh release create x.y.z --repo metaebene/space-juggler`). Die Apps ziehen mit
   `swift package update space-juggler` nach und committen ihr `Package.resolved`.
+- SpaceMouse Probe geht mit jedem Release als notarisiertes Disk-Image an den GitHub-Release:
+  `Scripts/release-spacemouse-probe.sh x.y.z` (Developer ID, Profil `stagehand-notary`) → `dist/`, dann
+  `gh release upload`.

@@ -47,8 +47,9 @@ declares, its keys guessed.
 
 If you have a SpaceMouse that is not in the first table, **SpaceMouse Probe** asks you to press every key and move the
 cap every way, and writes down what the device sends. It opens a GitHub issue with the report (or saves it as a file);
-that is how a model becomes checked. Build it with `Scripts/build-spacemouse-probe.sh` (a signed download will follow
-with a release). It never changes your device except for switching its LED when you ask, and works next to
+that is how a model becomes checked. **Download:** `SpaceMouseProbe-<version>.dmg` from the
+[latest release](https://github.com/metaebene/space-juggler/releases/latest) (signed and notarized, macOS 14 or later;
+English and German), or build it with `Scripts/build-spacemouse-probe.sh`. It never changes your device except for switching its LED when you ask, and works next to
 3Dconnexion's driver (for keys and axes, quit 3Dconnexion's helper while it runs).
 
 ## Using it in an app
