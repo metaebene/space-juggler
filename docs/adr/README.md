@@ -8,6 +8,7 @@
 | [0004](0004-space-juggler-is-the-drivers-one-manual-client.md) | While 3Dconnexion's helper runs, Space Juggler is the driver's one manual client | accepted |
 | [0005](0005-a-spacemouse-the-catalog-does-not-know-is-still-a-spacemouse.md) | A SpaceMouse the catalog does not know is still a SpaceMouse | proposed |
 | [0006](0006-the-probe-asks-until-a-model-is-known.md) | SpaceMouse Probe asks at the device until a model is known | proposed |
+| [0007](0007-the-probe-icon-is-the-cap-and-its-directions.md) | SpaceMouse Probe's icon is the cap and its directions, as Icon Composer layers | proposed |
 
 Template: Context, Decision, Consequences, Rules, Enforced and verified by (as in the client repositories). A change
 against an ADR's Rules needs a superseding ADR.

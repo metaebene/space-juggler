@@ -20,6 +20,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Helpers"
 cp "$BIN/SpaceMouseProbe" "$APP/Contents/MacOS/SpaceMouseProbe"
 # CFBundleShortVersionString: the release (SHORT_VERSION, x.y.z), else Space Juggler's version; CFBundleVersion: the latter.
 sed -e "s/__SHORT_VERSION__/${SHORT_VERSION:-$VERSION}/g" -e "s/__VERSION__/$VERSION/g" App/Probe/Info.plist > "$APP/Contents/Info.plist"
+# The icon (ADR-0007): Assets.car for macOS 26+ (Liquid Glass), AppIcon.icns for older systems.
+xcrun actool App/Probe/AppIcon.icon --compile "$APP/Contents/Resources" --app-icon AppIcon --platform macosx \
+  --minimum-deployment-target 14.0 --output-partial-info-plist "$(mktemp -t SpaceMouseProbe-icon).plist" >/dev/null
 cp -R App/Probe/de.lproj "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/en.lproj"
 JUGGLER=$(Scripts/build-space-juggler.sh "$CONFIG" "$APP/Contents/Helpers" | tail -1)
