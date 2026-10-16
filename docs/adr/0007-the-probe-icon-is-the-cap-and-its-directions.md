@@ -1,6 +1,6 @@
 # ADR-0007: SpaceMouse Probe's icon is the cap and its directions, as Icon Composer layers
 
-- Status: proposed (2026-10-16)
+- Status: accepted (Tim, 2026-10-16)
 - Date: 2026-10-16
 - Related: ADR-0006 (the probe); Space Glider ADR-0010 (the same way of making an icon)
 
