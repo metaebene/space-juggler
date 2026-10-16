@@ -66,6 +66,9 @@
 - Release 0.4.0 (2026-10-16): notarization accepted (submission f9c6e492-9ef2-406c-b360-206e1ed76328), stapled; `spctl`
   accepts the image, the app and Space Juggler.app inside as "Notarized Developer ID"; 2.5 MB, SHA-256
   `51609a3a466caaed53d125e7f2fa3c8cccdef5aa9ac5c8a5e563826195ac1153`.
+- Release 0.5.0 (2026-10-17): notarization accepted (submission 8da1d1f6-ca23-47d4-96a0-58d5130bc8ab), stapled; `spctl`
+  accepts the image as "Notarized Developer ID"; 3.5 MB, SHA-256
+  `1930916bcd11126b4561f9fba11aa10ec4b164b5814371b31981fc00eb762f48`.
 - At the device (Tim, 2026-10-16): the steps at the SpaceMouse Compact; the report link was too long for GitHub.
 - The first report from a device nobody here owns (issue #1, 2026-10-16): a SpaceTraveler; descriptor, axes and LED
   as `docs/models.md` records, all eight keys seen but no labels given, so the entry stays `published`. Its keys are
