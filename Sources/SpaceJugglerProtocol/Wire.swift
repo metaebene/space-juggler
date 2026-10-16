@@ -5,7 +5,7 @@ import Foundation
 public enum SpaceJuggler {
     /// Version of the broker built from this package. A running broker hands over only to a higher one; a client
     /// that meets a lower one starts its own. Raise it with every release of the package.
-    public static let version = 4
+    public static let version = 5
     /// Raised with every change of the messages that an older peer cannot read.
     public static let protocolVersion = 2
     public static let bundleIdentifier = "me.metaebene.SpaceJuggler"
