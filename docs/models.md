@@ -102,9 +102,12 @@ label "SpaceTraveler3 USB", USB name "SpaceTraveler USB", bcdDevice 0x0311, low 
 driver running). Descriptor 204 B: split axes in reports 1 and 2, logical ±500 (physical −32768 … 32767), declared Relative;
 report 3 one byte for HID buttons 1–8 plus a padding byte; output report 4 with two LED usages (0x4B, 0x4C), one bit
 each; vendor features 0x05–0x0B, nothing beyond. All twelve directions moved the expected axis with our signs (peaks
-263–424 of 500). The LED lit with `04 01` and went out with `04 00`. All eight declared buttons seen, bits 0–7; which
-printed key each is was not recorded (no labels given). 3DxWare calls them buttons 1–8 (3Dconnexion forum, "SpaceTraveler
-problems with button 8"), so `SpaceMouseKit` names bit n key n+1 until the device says otherwise.
+263–424 of 500). The LED lit with `04 01` and went out with `04 00`. All eight declared buttons seen, bits 0–7. The keys are
+not printed (the reporter, 2026-10-16): eight keys round the cap, the USB cable at 12 o'clock. They were pressed from the
+one at 1–2 o'clock clockwise, but the report (Space Probe 0.4) sorted them by bit, so which bit sits where is still
+open; since then the report keeps the order pressed. 3DxWare calls them buttons 1–8 (3Dconnexion forum, "SpaceTraveler
+problems with button 8"), so `SpaceMouseKit` names bit n key n+1. The reporter's old 3DxWare knew only two of them,
+"L" and "R", guessed to be the keys left and right of the cable (8 and 1 in the clockwise count).
 
 **SpaceExplorer C627** (2007–2016). 15 keys, bits agreed by Blender, PySpaceMouse, FreeCAD and Open CASCADE:
 0 `1`, 1 `2`, 2 T, 3 L, 4 R, 5 F, 6 ESC, 7 ALT, 8 SHIFT, 9 CTRL, 10 FIT, 11 PANEL, 12 `+`, 13 `−`, 14 2D.
@@ -180,7 +183,7 @@ What no public source answers, and what a probe run at someone's device has to c
 - Whether the Universal Receiver tells which device is paired in a slot, and that device's serial number.
 - Battery report and its second byte on C631, C632, C638, and over the Universal Receiver.
 - Every key of the SpaceExplorer, SpacePilot, SpacePilot Pro and Enterprise, to settle the conflicts above.
-- The SpaceTraveler's keys: what is printed on them (if anything) and which bit each sets.
+- The SpaceTraveler's keys: which bit each of the eight (unprinted, round the cap) sets.
 - Axis signs on the 046D models spacenavd treats differently (C603, C606).
 - The LED: which models light it, and the Compact's on-before-off behaviour.
 

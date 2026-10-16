@@ -194,7 +194,7 @@ final class ProbeSession: Identifiable {
                 axisMaximum: parsed?.axisLogicalMaximum, axesDeclaredRelative: parsed?.axesDeclaredRelative,
                 buttonUsages: parsed?.buttonUsages ?? [], hasLED: parsed?.hasLED),
             keys: .init(declared: declaredBits.count,
-                        found: keys.sorted().map { .init(bit: $0, label: labels[$0] ?? "", catalog: catalogName($0)) },
+                        found: keys.map { .init(bit: $0, label: labels[$0] ?? "", catalog: catalogName($0)) },
                         complete: isDone(.keys)),
             axes: .init(fullScale: fullScale,
                         directions: SpaceMouseAxes.Direction.allCases.compactMap { direction in

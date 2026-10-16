@@ -48,6 +48,8 @@ struct ProbeReport: Codable {
             var catalog: String?
         }
         var declared: Int
+        /// In the order they were first pressed: for keys without print, where the user went round tells which is
+        /// which (issue #1).
         var found: [Key]
         /// The user said there are no more keys.
         var complete: Bool

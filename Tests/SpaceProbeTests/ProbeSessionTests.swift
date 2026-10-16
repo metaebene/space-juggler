@@ -77,13 +77,16 @@ struct ProbeSessionTests {
         session.step = .keys
         session.ingest([0x17, 0x40, 0x01])
         session.ingest([0x1C, 0x05, 0x00])
-        session.ingest([0x03, 0b01])
+        session.ingest([0x03, 0b100])
+        session.ingest([0x03, 0b000])
+        session.ingest([0x03, 0b001])
         session.labels[0] = "1"
         session.printedName = "SpaceMouse Future"
         let report = session.makeReport(brokerVersion: 4, driverRunning: false)
         #expect(report.batteryReports == ["17 40 01"])
         #expect(report.otherInputReports == ["1C": "1c 05 00"])
-        #expect(report.keys.found.first?.label == "1")
+        #expect(report.keys.found.map(\.bit) == [2, 0], "in the order pressed")
+        #expect(report.keys.found.last?.label == "1")
         #expect(report.device.productID == "C6FF")
         #expect(report.device.hasLED == true)
         let json = try JSONSerialization.jsonObject(with: report.json) as? [String: Any]
