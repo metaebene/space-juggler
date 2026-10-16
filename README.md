@@ -31,6 +31,7 @@ here has seen them do so:
 
 | Model | Vendor:Product | Buttons |
 |---|---|---|
+| SpaceTraveler (axes and LED seen at a device, keys not yet) | 046D:C623 | 8 |
 | SpaceNavigator for Notebooks | 046D:C628 | 2 |
 | SpaceExplorer | 046D:C627 | 15 |
 | SpacePilot | 046D:C625 | 21 |

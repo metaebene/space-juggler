@@ -124,6 +124,8 @@ struct SpaceMouseReportExtrasTests {
         let compact = SpaceMouseModel.compact.twoButtons, pro = SpaceMouseModel.spaceMousePro.twoButtons
         #expect(compact.left == .left && compact.right == .right)
         #expect(pro.left == .menu && pro.right == .fit)
+        let traveler = SpaceMouseModel.spaceTraveler.twoButtons
+        #expect(traveler.left == .key1 && traveler.right == .key2)
         #expect(SpaceMouseModel.spaceMousePro.asTwoButtons([.menu, .key1]) == .left)
         #expect(SpaceMouseModel.compact.asTwoButtons([.left, .right]) == [.left, .right])
         #expect(SpaceMouseModel.known.filter { !$0.hasStatusLED } == [.spacePilot])

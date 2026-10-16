@@ -94,10 +94,12 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
     public var isBluetooth: Bool { transport.caseInsensitiveCompare("Bluetooth") == .orderedSame }
 
     /// The two buttons a program uses that only knows two: left and right where the device has them, else MENU and
-    /// FIT (`SpaceMouseModel.twoButtons`).
+    /// FIT, else keys 1 and 2 (`SpaceMouseModel.twoButtons`).
     public var twoButtons: (left: SpaceMouseButtons, right: SpaceMouseButtons) {
         let all = buttons ?? model?.buttons ?? [.left, .right]
-        return all.contains(.left) || !all.contains(.menu) ? (.left, .right) : (.menu, .fit)
+        if all.contains(.left) { return (.left, .right) }
+        if all.contains(.menu) { return (.menu, .fit) }
+        return all.contains(.key1) ? (.key1, .key2) : (.left, .right)
     }
 
     /// Whether its LED can be switched now (it has one, and it lights on this transport).

@@ -65,6 +65,13 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
 
     // MARK: - From public sources (docs/models.md)
 
+    /// Eight keys, bits 0 … 7 as HID buttons 1 … 8; 3DxWare calls them buttons 1 … 8, which keys they are on the device
+    /// is still open. Its descriptor, its axes (±500, our signs) and its LED seen at a device by Space Probe (issue #1,
+    /// 2026-10-16).
+    public static let spaceTraveler = SpaceMouseModel(
+        vendorID: 0x046D, productID: 0xC623, name: "SpaceTraveler",
+        buttonBits: [0: .key1, 1: .key2, 2: .key3, 3: .key4, 4: .key5, 5: .key6, 6: .key7, 7: .key8],
+        axisFullScale: 500)
     public static let spaceNavigatorNotebook = SpaceMouseModel(vendorID: 0x046D, productID: 0xC628,
                                                                name: "SpaceNavigator for Notebooks", buttonBits: twoButtons)
     /// Fifteen keys in a numbering of its own; Blender, PySpaceMouse, FreeCAD and Open CASCADE agree. Its "2D" key
@@ -105,7 +112,7 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
 
     public static let known: [SpaceMouseModel] = [
         .compact, .spaceNavigator, .spaceMousePro, .spaceMouseWireless,
-        .spaceNavigatorNotebook, .spaceExplorer, .spacePilot, .spacePilotPro, .spaceMouseWirelessCable,
+        .spaceTraveler, .spaceNavigatorNotebook, .spaceExplorer, .spacePilot, .spacePilotPro, .spaceMouseWirelessCable,
         .spaceMouseWirelessReceiver, .spaceMouseProWirelessCable, .spaceMouseProWirelessReceiver,
         .spaceMouseProWireless, .enterprise,
     ]
@@ -190,9 +197,9 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
     }
 
     /// The two buttons a program uses that only knows two: the Compact's left and right, else MENU and FIT
-    /// (Space Glider ADR-0025).
+    /// (Space Glider ADR-0025), else keys 1 and 2 (the SpaceTraveler).
     public var twoButtons: (left: SpaceMouseButtons, right: SpaceMouseButtons) {
-        buttons.contains(.left) ? (.left, .right) : (.menu, .fit)
+        buttons.contains(.left) ? (.left, .right) : buttons.contains(.menu) ? (.menu, .fit) : (.key1, .key2)
     }
 
     /// `held` as a program sees it that only knows two buttons: `.left` and `.right` (`twoButtons`).

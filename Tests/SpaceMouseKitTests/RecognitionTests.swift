@@ -11,6 +11,14 @@ let compactDescriptor: [UInt8] = hex("""
     02c0a102851a09329507b102c0c0c0
     """)
 
+/// The SpaceTraveler's report descriptor (046D:C623, fw 0x0311), from the Space Probe report in issue #1 (2026-10-16).
+let travelerDescriptor: [UInt8] = hex("""
+    05010908a101a1008501160cfe26f40136008046ff7f093009310932751095038106c0a1008502093309340935751095038106c0a1028503\
+    0501050919012908150025013500450175019508810295088103c0a10285040508194b294c15002501950275019102950175069103c00600\
+    ff0901a1021580257f7508093aa102850509209501b102c0a102850609219501b102c0a102850709229501b102c0a102850809239507b102\
+    c0a102850909249507b102c0a102850a09259507b102c0a102850b09269501b102c0c0c0
+    """)
+
 func hex(_ text: String) -> [UInt8] {
     let digits = text.filter(\.isHexDigit)
     return stride(from: 0, to: digits.count - 1, by: 2).map { offset in
@@ -34,6 +42,20 @@ struct HIDReportDescriptorTests {
         #expect(descriptor.featureReportIDs == [0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x13, 0x19, 0x1A])
         #expect(descriptor.report(0x08, .feature)?.length == 8)
         #expect(descriptor.report(0x19, .feature)?.length == 5)
+    }
+
+    @Test func travelerReports() throws {
+        let descriptor = try #require(HIDReportDescriptor(travelerDescriptor))
+        #expect(descriptor.isMultiAxisController)
+        #expect(descriptor.report(1, .input)?.length == 7)
+        #expect(descriptor.report(2, .input)?.length == 7)
+        #expect(descriptor.report(3, .input)?.length == 3)
+        #expect(descriptor.report(4, .output)?.length == 2)
+        #expect(descriptor.axisLogicalMaximum == 500)
+        #expect(descriptor.axesDeclaredRelative)
+        #expect(descriptor.buttonUsages == Array(1...8))
+        #expect(descriptor.hasLED)
+        #expect(descriptor.featureReportIDs == [0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B])
     }
 
     @Test func truncatedDescriptorIsRejected() {
@@ -64,6 +86,17 @@ struct RecognitionTests {
                                                                descriptor: compact))
         #expect(navigator.axisFullScale == 350)
         #expect(SpaceMouseModel.recognise(vendorID: 0x046D, productID: 0xC626, product: nil, descriptor: nil)?.axisFullScale == 500)
+    }
+
+    @Test func theSpaceTravelerIsInTheCatalog() throws {
+        let model = try #require(SpaceMouseModel.recognise(vendorID: 0x046D, productID: 0xC623, product: "SpaceTraveler USB",
+                                                           descriptor: HIDReportDescriptor(travelerDescriptor)))
+        #expect(model == .spaceTraveler)
+        #expect(model.knowledge == .published)
+        #expect(model.axisFullScale == 500)
+        #expect(model.hasStatusLED)
+        #expect(model.buttons(0xFF) == [.key1, .key2, .key3, .key4, .key5, .key6, .key7, .key8])
+        #expect(model.serialFeatureReportID == nil)
     }
 
     @Test func anUnknownMultiAxisControllerIsGuessed() throws {

@@ -67,4 +67,5 @@
   accepts the image, the app and Space Juggler.app inside as "Notarized Developer ID"; 2.5 MB, SHA-256
   `51609a3a466caaed53d125e7f2fa3c8cccdef5aa9ac5c8a5e563826195ac1153`.
 - At the device (Tim, 2026-10-16): the steps at the SpaceMouse Compact; the report link was too long for GitHub.
-- Open: a report from a device nobody here owns.
+- The first report from a device nobody here owns (issue #1, 2026-10-16): a SpaceTraveler; descriptor, axes and LED
+  as `docs/models.md` records, all eight keys seen but no labels given, so the entry stays `published`.

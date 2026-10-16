@@ -137,6 +137,9 @@ struct ProbeMessageTests {
         let guessed = SpaceMouseDevice(id: "port:2", vendorID: 0x256F, productID: 0xC6FF, name: "Future", transport: "USB",
                                        knowledge: .guessed, buttons: [.menu, .fit, .key1], hasLED: false)
         #expect(guessed.twoButtons.left == .menu)
+        let traveler = SpaceMouseDevice(id: "port:3", vendorID: 0x046D, productID: 0xC623, name: "SpaceTraveler USB",
+                                        transport: "USB", buttons: SpaceMouseModel.spaceTraveler.buttons, hasLED: true)
+        #expect(traveler.twoButtons.left == .key1 && traveler.twoButtons.right == .key2)
         #expect(!guessed.canLightLED)
         let wireless = SpaceMouseDevice(id: "bt:1", vendorID: 0x256F, productID: 0xC63A, name: "SpaceMouse Wireless",
                                         transport: "Bluetooth", hasLED: true)
