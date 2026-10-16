@@ -84,14 +84,12 @@ final class ProbeSession: Identifiable {
     /// What the catalog calls the key at `bit`, if the model is in it.
     func catalogName(_ bit: Int) -> String? { model?.buttonBits[bit]?.name }
 
-    /// A label to start from: the side of a side button, else the catalog's name of the key.
+    /// A label to start from: what the catalog says is printed on the key; nothing for the side buttons of the
+    /// two-button models, which carry no print, and nothing for a model the catalog only guesses.
     func suggestedLabel(_ bit: Int) -> String {
-        switch model?.buttonBits[bit] {
-        case SpaceMouseButtons.left?: String(localized: "Left button")
-        case SpaceMouseButtons.right?: String(localized: "Right button")
-        case let button?: button.name
-        case nil: ""
-        }
+        guard let model, model.knowledge != .guessed else { return "" }
+        guard let button = model.buttonBits[bit], button != .left, button != .right else { return "" }
+        return button.name
     }
 
     var asked: SpaceMouseAxes.Direction? { SpaceMouseAxes.Direction.allCases.first { results[$0] == nil } }
@@ -102,9 +100,8 @@ final class ProbeSession: Identifiable {
         switch step {
         case .start: true
         case .description: description != nil && description?.error == nil
-        case .keys:
-            keys.allSatisfy { !(labels[$0] ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
-                && (noMoreKeys || Set(declaredBits).isSubset(of: keys))
+        // A label may stay empty: nothing printed on the key.
+        case .keys: noMoreKeys || Set(declaredBits).isSubset(of: keys)
         case .cap: asked == nil
         case .led: !hasLED || (ledLit != nil && ledWentOut != nil)
         case .label: !printedName.trimmingCharacters(in: .whitespaces).isEmpty && (noSerialPrinted || !printedSerial.isEmpty)

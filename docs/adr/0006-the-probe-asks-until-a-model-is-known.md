@@ -29,7 +29,8 @@
   is started explicitly, every step has a page of its own, and the user moves on explicitly once the step is done;
   keys count only in the keys step, the cap only in the cap step. English and German. The steps:
   1. Description (automatic).
-  2. Keys: press each key; for every new bit the probe asks for the label printed on it. Done when every button the
+  2. Keys: press each key; for every new one the probe asks for the label printed on it (empty: nothing printed; no
+     suggestion for the unprinted side buttons or a guessed model). Done when every button the
      descriptor declares has been seen, or the user says there are no more.
   3. Axes: the twelve directions one after another; each records which axis moved, its sign and its peak.
   4. LED: switched on and off on request; the user says whether it lit.

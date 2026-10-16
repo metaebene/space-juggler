@@ -275,7 +275,7 @@ struct KeysPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            PageTitle(title: "Keys", text: "Press each key of your SpaceMouse once. For every key, type what is printed on it, or where it sits if nothing is printed.")
+            PageTitle(title: "Keys", text: "Press each key of your SpaceMouse once. For every key, type what is printed on it; leave the field empty if nothing is.")
             HStack(alignment: .top, spacing: 28) {
                 SpaceMouseTopView(axes: session.axes, fullScale: session.fullScale,
                                   sideButtons: session.hasSideButtons ? (session.heldBits.contains(0), session.heldBits.contains(1)) : nil)
@@ -289,7 +289,7 @@ struct KeysPage: View {
                             Image(systemName: session.heldBits.contains(bit) ? "circle.fill" : "checkmark.circle.fill")
                                 .foregroundStyle(session.heldBits.contains(bit) ? Color.orange : Color.green)
                             Text("Key \(index + 1)").frame(width: 70, alignment: .leading)
-                            TextField("What is printed on it", text: Binding(get: { session.labels[bit] ?? "" },
+                            TextField("Nothing printed", text: Binding(get: { session.labels[bit] ?? "" },
                                                                             set: { session.labels[bit] = $0 }))
                                 .frame(width: 220)
                         }
@@ -413,7 +413,9 @@ struct SummaryPage: View {
                 Section {
                     if session.keys.isEmpty { Text("none") }
                     ForEach(Array(session.keys.enumerated()), id: \.element) { index, bit in
-                        row("Key \(index + 1)") { Text(verbatim: session.labels[bit] ?? "") }
+                        row("Key \(index + 1)") {
+                            if let label = session.labels[bit], !label.isEmpty { Text(verbatim: label) } else { Text("nothing printed") }
+                        }
                     }
                 } header: { header("Keys", step: .keys) }
                 Section {

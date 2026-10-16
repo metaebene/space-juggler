@@ -35,13 +35,10 @@ struct ProbeSessionTests {
         session.ingest([0x03, 0b011])
         session.ingest([0x03, 0b000])
         #expect(session.keys == [0, 1])
-        // No catalog entry for this model: nothing to suggest, the user types it.
-        #expect(!session.isDone(.keys))
-        session.labels[0] = "1"
-        session.labels[1] = "2"
+        // No catalog entry for this model: nothing suggested; an empty label means nothing printed.
+        #expect(session.labels == [0: "", 1: ""])
         #expect(!session.isDone(.keys))
         session.ingest([0x03, 0b100])
-        session.labels[2] = "MENU"
         #expect(session.isDone(.keys))
         session.forgetKeys()
         session.noMoreKeys = true

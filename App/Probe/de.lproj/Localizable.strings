@@ -57,15 +57,14 @@
 "Read Again" = "Erneut lesen";
 
 /* Keys */
-"Press each key of your SpaceMouse once. For every key, type what is printed on it, or where it sits if nothing is printed." = "Drücke jede Taste deiner SpaceMouse einmal. Tippe zu jeder Taste ein, was darauf steht, oder wo sie sitzt, wenn nichts darauf steht.";
+"Press each key of your SpaceMouse once. For every key, type what is printed on it; leave the field empty if nothing is." = "Drücke jede Taste deiner SpaceMouse einmal. Tippe zu jeder Taste ein, was darauf steht; lass das Feld leer, wenn nichts darauf steht.";
 "Waiting for the first key…" = "Warte auf die erste Taste …";
 "Key %lld" = "Taste %lld";
-"What is printed on it" = "Was darauf steht";
+"Nothing printed" = "Nichts aufgedruckt";
+"nothing printed" = "nichts aufgedruckt";
 "%lld of %lld keys found" = "%lld von %lld Tasten gefunden";
 "My SpaceMouse has no further keys" = "Meine SpaceMouse hat keine weiteren Tasten";
 "Start Over" = "Von vorn";
-"Left button" = "Linke Taste";
-"Right button" = "Rechte Taste";
 
 /* Cap */
 "Move the cap as asked, as far as it goes, then let go. The next direction follows by itself." = "Bewege die Kappe wie gefragt bis zum Anschlag und lass dann los. Die nächste Richtung folgt von selbst.";
