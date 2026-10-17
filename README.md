@@ -25,13 +25,13 @@ Checked at a device:
 | SpaceNavigator | 046D:C626 | 2 |
 | SpaceMouse Pro | 046D:C62B | 15 |
 | SpaceMouse Wireless (Bluetooth and on its cable) | 256F:C63A | 2 |
+| SpaceTraveler | 046D:C623 | 8 |
 
 **Not yet checked** — known from public sources only ([docs/models.md](docs/models.md)); they should work, but nobody
 here has seen them do so:
 
 | Model | Vendor:Product | Buttons |
 |---|---|---|
-| SpaceTraveler (axes and LED seen at a device, keys not yet) | 046D:C623 | 8 |
 | SpaceNavigator for Notebooks | 046D:C628 | 2 |
 | SpaceExplorer | 046D:C627 | 15 |
 | SpacePilot | 046D:C625 | 21 |

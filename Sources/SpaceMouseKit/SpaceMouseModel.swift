@@ -63,15 +63,16 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
                                                            name: "SpaceMouse Wireless", buttonBits: twoButtons,
                                                            knowledge: .checked)
 
-    // MARK: - From public sources (docs/models.md)
-
-    /// Eight keys, bits 0 … 7 as HID buttons 1 … 8; 3DxWare calls them buttons 1 … 8, which keys they are on the device
-    /// is still open. Its descriptor, its axes (±500, our signs) and its LED seen at a device by Space Probe (issue #1,
-    /// 2026-10-16).
+    /// Eight unprinted keys round the cap, named 1 … 8 as 3DxWare does: bit 0 is the key right of the cable
+    /// (1–2 o'clock), then clockwise to bit 7 left of it. The axes ±500 with our signs, the LED (Space Probe at the
+    /// reporter's device, issue #1, 2026-10-16/17).
     public static let spaceTraveler = SpaceMouseModel(
         vendorID: 0x046D, productID: 0xC623, name: "SpaceTraveler",
         buttonBits: [0: .key1, 1: .key2, 2: .key3, 3: .key4, 4: .key5, 5: .key6, 6: .key7, 7: .key8],
-        axisFullScale: 500)
+        knowledge: .checked, axisFullScale: 500)
+
+    // MARK: - From public sources (docs/models.md)
+
     public static let spaceNavigatorNotebook = SpaceMouseModel(vendorID: 0x046D, productID: 0xC628,
                                                                name: "SpaceNavigator for Notebooks", buttonBits: twoButtons)
     /// Fifteen keys in a numbering of its own; Blender, PySpaceMouse, FreeCAD and Open CASCADE agree. Its "2D" key
@@ -111,8 +112,8 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
                                                    buttonBits: enterpriseBits)
 
     public static let known: [SpaceMouseModel] = [
-        .compact, .spaceNavigator, .spaceMousePro, .spaceMouseWireless,
-        .spaceTraveler, .spaceNavigatorNotebook, .spaceExplorer, .spacePilot, .spacePilotPro, .spaceMouseWirelessCable,
+        .compact, .spaceNavigator, .spaceMousePro, .spaceMouseWireless, .spaceTraveler,
+        .spaceNavigatorNotebook, .spaceExplorer, .spacePilot, .spacePilotPro, .spaceMouseWirelessCable,
         .spaceMouseWirelessReceiver, .spaceMouseProWirelessCable, .spaceMouseProWirelessReceiver,
         .spaceMouseProWireless, .enterprise,
     ]

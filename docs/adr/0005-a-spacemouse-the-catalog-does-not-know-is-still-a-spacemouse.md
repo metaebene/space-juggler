@@ -59,4 +59,6 @@
 - `SpaceMouseModel.recognise`, `HIDReportDescriptor` and their tests (the Compact's descriptor as read from the
   IORegistry, 2026-10-15).
 - `Devices` matches by usage pair; `SpaceMouseValuesTests`.
+- A model nobody here owns, at its owner's device: the SpaceTraveler (046D:C623), not in the catalog, was recognised
+  as `guessed` from its descriptor (axes, LED, eight buttons) and reported with Space Probe (issue #1, 2026-10-16).
 - Open: a model from the published list at a device.

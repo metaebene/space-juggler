@@ -92,7 +92,7 @@ struct RecognitionTests {
         let model = try #require(SpaceMouseModel.recognise(vendorID: 0x046D, productID: 0xC623, product: "SpaceTraveler USB",
                                                            descriptor: HIDReportDescriptor(travelerDescriptor)))
         #expect(model == .spaceTraveler)
-        #expect(model.knowledge == .published)
+        #expect(model.knowledge == .checked)
         #expect(model.axisFullScale == 500)
         #expect(model.hasStatusLED)
         #expect(model.buttons(0xFF) == [.key1, .key2, .key3, .key4, .key5, .key6, .key7, .key8])
