@@ -1,7 +1,8 @@
 import AppKit
 
 /// The menu bar symbol: a SpaceMouse seen slightly from above, the cap on its base, as a template image (one colour
-/// plus alpha, so macOS tints it for light, dark and dimmed). Drawn at any scale.
+/// plus alpha, so macOS tints it for light, dark and dimmed). Drawn at any scale; also the app icon's mark
+/// (`Scripts/make-juggler-icon.swift`, ADR-0008).
 enum MenuBarIcon {
     static func image(size: CGFloat = 18) -> NSImage {
         let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
@@ -27,23 +28,27 @@ enum MenuBarIcon {
         return (whole, top)
     }
 
-    private static func draw(in rect: NSRect) {
+    /// Draws the symbol into the current context, filling `rect`'s width; `color` only matters outside a template.
+    static func draw(in rect: NSRect, color: NSColor = .black) {
         let scale = rect.width / 18
+        NSGraphicsContext.current?.cgContext.translateBy(x: rect.minX, y: rect.minY)
+        defer { NSGraphicsContext.current?.cgContext.translateBy(x: -rect.minX, y: -rect.minY) }
         let base = disc(centerX: 9, bottom: 1.5, width: 16, rim: 5, thickness: 2.5, scale: scale)
         let cap = disc(centerX: 9, bottom: 5.2, width: 8.5, rim: 3.2, thickness: 6, scale: scale)
 
         // The base half transparent, the cap solid, with a hair of clear edge so the two separate.
-        NSColor.black.withAlphaComponent(0.55).setFill()
+        color.withAlphaComponent(0.55).setFill()
         base.whole.fill()
         NSGraphicsContext.current?.cgContext.setBlendMode(.clear)
         cap.whole.lineWidth = 1.4 * scale
         cap.whole.stroke()
         NSGraphicsContext.current?.cgContext.setBlendMode(.normal)
-        NSColor.black.setFill()
+        color.setFill()
         cap.whole.fill()
         // The cap's top face, set off by a thin clear line.
         NSGraphicsContext.current?.cgContext.setBlendMode(.clear)
         cap.top.lineWidth = 0.8 * scale
         cap.top.stroke()
+        NSGraphicsContext.current?.cgContext.setBlendMode(.normal)
     }
 }

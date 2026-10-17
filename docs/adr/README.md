@@ -9,6 +9,7 @@
 | [0005](0005-a-spacemouse-the-catalog-does-not-know-is-still-a-spacemouse.md) | A SpaceMouse the catalog does not know is still a SpaceMouse | proposed |
 | [0006](0006-the-probe-asks-until-a-model-is-known.md) | Space Probe asks at the device until a model is known | proposed |
 | [0007](0007-the-probe-icon-is-the-cap-and-its-directions.md) | Space Probe's icon is the cap and its directions, as Icon Composer layers | accepted |
+| [0008](0008-the-juggler-icon-is-the-menu-bar-symbol.md) | Space Juggler's icon is its menu bar symbol, as Icon Composer layers | accepted |
 
 Template: Context, Decision, Consequences, Rules, Enforced and verified by (as in the client repositories). A change
 against an ADR's Rules needs a superseding ADR.

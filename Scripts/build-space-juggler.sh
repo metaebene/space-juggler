@@ -18,6 +18,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/SpaceJuggler" "$APP/Contents/MacOS/SpaceJuggler"
 sed "s/__VERSION__/$VERSION/g" App/Info.plist > "$APP/Contents/Info.plist"
+# The icon (ADR-0008), so Activity Monitor and Finder show the menu bar symbol: Assets.car for macOS 26+, AppIcon.icns before.
+xcrun actool App/AppIcon.icon --compile "$APP/Contents/Resources" --app-icon AppIcon --platform macosx \
+  --minimum-deployment-target 14.0 --output-partial-info-plist "$(mktemp -t SpaceJuggler-icon).plist" >/dev/null
 cp -R App/de.lproj "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/en.lproj"
 SIGN_OPTIONS=(--force --options runtime --entitlements App/SpaceJuggler.entitlements --sign "$IDENTITY")
