@@ -78,7 +78,8 @@ juggler.start()
 ```
 
 Embed `Space Juggler.app` as `Contents/Helpers/Space Juggler.app`: `Scripts/build-space-juggler.sh [debug|release]
-<directory>` builds it (`SIGN_IDENTITY` = your identity; `UNIVERSAL=1`, `TIMESTAMP=1` for distribution). The client
+<directory>` builds it (`SIGN_IDENTITY` = your identity; `UNIVERSAL=1`, `TIMESTAMP=1` for distribution; `SCRATCH_PATH` = a build
+directory of your own, since SwiftPM's checkout of the package is read-only). The client
 starts it through Launch Services when nobody answers.
 
 ## Parts
