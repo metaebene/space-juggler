@@ -72,6 +72,9 @@
 - Release 0.5.1 (2026-10-17): notarization accepted (submission 98a5b066-4a55-4a0f-a593-725ab9fbe99e), stapled; `spctl`
   accepts the image as "Notarized Developer ID"; 4.9 MB, SHA-256
   `a3043051e7bf6d9f819445b189e5b0d61f444635e993c58897afe8424b065ac7`.
+- Release 0.5.2 (2026-10-20): notarization accepted (submission 31f19275-afbc-474e-8552-0c7a4c61560b), stapled; `spctl`
+  accepts the image as "Notarized Developer ID"; 5.2 MB, SHA-256
+  `077ef08ad25bc0019cb9659bee59c3c84ae56d5ff3bfb49603a0a9b707942495`.
 - At the device (Tim, 2026-10-16): the steps at the SpaceMouse Compact; the report link was too long for GitHub.
 - The first report from a device nobody here owns (issue #1, 2026-10-16): a SpaceTraveler; descriptor, axes and LED
   as `docs/models.md` records, all eight keys seen but no labels given, so the entry stays `published`. Its keys are
