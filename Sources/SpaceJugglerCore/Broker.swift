@@ -222,6 +222,7 @@ public final class Broker {
 
     private func closed(_ id: Int) {
         guard !leaving, let client = clients.removeValue(forKey: id) else { return }
+        if client.connection.stalled { say("\(client.name) stopped reading: dropped") }
         if client.claimant != nil {
             say("\(client.name) left")
             arbitrate()

@@ -49,53 +49,111 @@ public enum UnixSocket {
 }
 
 /// One side of a connection: sends `Outgoing`, receives `Incoming`, one JSON object per line.
+///
+/// Never blocks: the socket is non-blocking, and what the peer has not taken yet waits here. A peer that stops reading
+/// (a hung app, or a socket it dropped without closing, 2026-10-20) is dropped once `backlogLimit` is waiting, instead of
+/// stopping the main thread in `write` until it reads again.
 @MainActor
 public final class LineConnection<Outgoing: Encodable, Incoming: Decodable> {
     public let fd: Int32
+    /// About five seconds of a SpaceMouse's motion; nobody wants it later than that.
+    public static var backlogLimit: Int { 64 * 1024 }
+    private let descriptor: Descriptor
     private var source: DispatchSourceRead?
+    private var writer: DispatchSourceWrite?
+    private var backlog = Data()
     private var decoder = LineDecoder<Incoming>()
+    private var closed = false
     public var onMessage: (Incoming) -> Void = { _ in }
     public var onClose: () -> Void = {}
+    /// Closed because the peer did not take what was sent (`backlogLimit`).
+    public private(set) var stalled = false
 
     public init(fd: Int32) {
         self.fd = fd
+        descriptor = Descriptor(fd)
         var noSigPipe: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+    }
+
+    /// Dropping a connection without `close()` closes it too, so the peer is told (instead of filling up a socket
+    /// nobody reads any more).
+    deinit {
+        writer?.cancel()
+        source?.cancel()
     }
 
     public func start() {
+        guard !closed else { return }
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
         source.setEventHandler { [weak self] in MainActor.assumeIsolated { self?.readAvailable() } }
-        source.setCancelHandler { [fd] in Darwin.close(fd) }
+        source.setCancelHandler { [descriptor] in _ = descriptor }
         self.source = source
         source.resume()
     }
 
     public func send(_ message: Outgoing) {
-        let data = LineEncoder.encode(message)
-        let written = data.withUnsafeBytes { raw -> Int in
-            var offset = 0
-            while offset < raw.count {
-                let count = write(fd, raw.baseAddress! + offset, raw.count - offset)
-                if count <= 0 { return -1 }
-                offset += count
-            }
-            return offset
+        guard !closed else { return }
+        backlog.append(LineEncoder.encode(message))
+        if writer == nil { flush() }
+        guard !closed else { return }
+        if backlog.count > Self.backlogLimit {
+            stalled = true
+            close()
         }
-        if written < 0 { close() }
     }
 
     public func close() {
-        guard let source else { return }
-        self.source = nil
-        source.cancel()
+        guard !closed else { return }
+        closed = true
+        backlog = Data()
+        writer?.cancel()
+        writer = nil
+        source?.cancel()
+        source = nil
         onClose()
+    }
+
+    /// Writes what the socket takes; waits for room if something is left.
+    private func flush() {
+        while !backlog.isEmpty {
+            let count = backlog.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
+            if count > 0 {
+                backlog.removeFirst(count)
+            } else if count < 0, errno == EINTR {
+                continue
+            } else if count < 0, errno == EAGAIN {
+                break
+            } else {
+                return close()
+            }
+        }
+        if backlog.isEmpty {
+            writer?.cancel()
+            writer = nil
+        } else if writer == nil {
+            let writer = DispatchSource.makeWriteSource(fileDescriptor: fd, queue: .main)
+            writer.setEventHandler { [weak self] in MainActor.assumeIsolated { self?.flush() } }
+            writer.setCancelHandler { [descriptor] in _ = descriptor }
+            self.writer = writer
+            writer.resume()
+        }
     }
 
     private func readAvailable() {
         var buffer = [UInt8](repeating: 0, count: 4096)
         let count = read(fd, &buffer, buffer.count)
+        if count < 0, errno == EAGAIN || errno == EINTR { return }
         guard count > 0 else { return close() }
         for message in decoder.feed(Data(buffer[0..<count])) { onMessage(message) }
     }
+}
+
+/// Closes the socket once the connection and every dispatch source on it are done with it (a source's cancel handler
+/// holds it), never while one is still registered.
+private final class Descriptor: Sendable {
+    let fd: Int32
+    init(_ fd: Int32) { self.fd = fd }
+    deinit { Darwin.close(fd) }
 }
