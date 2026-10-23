@@ -21,6 +21,13 @@ public final class SpaceJugglerConnection {
         public static var bundled: Launcher {
             .app(Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/\(SpaceJuggler.appName).app"))
         }
+
+        /// `bundled` where that app exists, else `none`: a build run outside its bundle (`swift run`) uses whichever
+        /// Space Juggler runs.
+        public static var bundledIfPresent: Launcher {
+            guard case .app(let url) = bundled, FileManager.default.fileExists(atPath: url.path) else { return .none }
+            return .app(url)
+        }
     }
 
     public enum Event: Sendable, Equatable {
@@ -45,6 +52,9 @@ public final class SpaceJugglerConnection {
     public private(set) var devices: [SpaceMouseDevice] = []
     public private(set) var holds = false
     public private(set) var brokerVersion: Int?
+    /// The protocol the broker speaks; below `SpaceJuggler.protocolVersion` it lacks the newer messages (`describe`,
+    /// `report`).
+    public private(set) var brokerProtocolVersion: Int?
 
     private let name: String
     private var claim: Claim
@@ -57,7 +67,9 @@ public final class SpaceJugglerConnection {
     private var lastLaunch: Date?
     private var held: [String: SpaceMouseButtons] = [:]
     private var moved: Set<String> = []
-    private var describing: [String: [(DeviceDescription) -> Void]] = [:]
+    /// Who waits for a device's description, each request numbered so that its timeout fails only itself.
+    private var describing: [String: [(request: Int, completion: (DeviceDescription) -> Void)]] = [:]
+    private var describeRequests = 0
 
     public init(name: String, claim: Claim, launcher: Launcher = .bundled, place: BrokerPlace = .standard,
                 version: Int = SpaceJuggler.version) {
@@ -133,14 +145,14 @@ public final class SpaceJugglerConnection {
     /// the answer, or a description with an error when Space Juggler is not reached or too old (protocol 1).
     public func describe(device: String, completion: @escaping (DeviceDescription) -> Void) {
         guard let connection else { return completion(DeviceDescription(device: device, error: "Space Juggler not reached")) }
-        describing[device, default: []].append(completion)
+        describeRequests += 1
+        let request = describeRequests
+        describing[device, default: []].append((request, completion))
         connection.send(.describe(device: device))
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, let waiting = self.describing[device], !waiting.isEmpty else { return }
-                self.describing[device] = nil
-                waiting.forEach { $0(DeviceDescription(device: device, error: "no answer from Space Juggler")) }
-            }
+        MainActor.after(5) { [weak self] in
+            guard let self, let index = describing[device]?.firstIndex(where: { $0.request == request }) else { return }
+            describing[device]?.remove(at: index)
+            completion(DeviceDescription(device: device, error: "no answer from Space Juggler"))
         }
     }
 
@@ -170,10 +182,11 @@ public final class SpaceJugglerConnection {
     private func lost() {
         connection = nil
         brokerVersion = nil
+        brokerProtocolVersion = nil
         let waiting = describing
         describing = [:]
-        for (device, completions) in waiting {
-            completions.forEach { $0(DeviceDescription(device: device, error: "Space Juggler gone")) }
+        for (device, requests) in waiting {
+            requests.forEach { $0.completion(DeviceDescription(device: device, error: "Space Juggler gone")) }
         }
         if holds { setHolds(false) }
         onEvent(.disconnected)
@@ -230,11 +243,12 @@ public final class SpaceJugglerConnection {
 
     private func received(_ message: BrokerMessage) {
         switch message {
-        case .welcome(let brokerVersion, _):
+        case .welcome(let brokerVersion, let protocolVersion):
             self.brokerVersion = brokerVersion
+            brokerProtocolVersion = protocolVersion
             onEvent(.connected(version: brokerVersion))
             // This client brings a newer broker: start it, it takes over (ADR-0001).
-            if brokerVersion < version { Self.start(launcher) }
+            if brokerVersion < version { launch() }
         case .devices(let list):
             devices = list
             onEvent(.devices(list))
@@ -252,8 +266,7 @@ public final class SpaceJugglerConnection {
             guard holds else { return }
             onReport(bytes, device)
         case .description(let description):
-            let waiting = describing.removeValue(forKey: description.device) ?? []
-            waiting.forEach { $0(description) }
+            describing.removeValue(forKey: description.device)?.forEach { $0.completion(description) }
         case .status, .handingOver:
             break
         }

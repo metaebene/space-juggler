@@ -20,12 +20,11 @@ final class Probe {
     static let issues = URL(string: "https://github.com/metaebene/space-juggler/issues/new")!
 
     init() {
-        let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/\(SpaceJuggler.appName).app")
         connection = SpaceJugglerConnection(
             name: "Space Probe",
             claim: Claim(apps: [Bundle.main.bundleIdentifier ?? "me.metaebene.SpaceProbe"], raw: true),
             // Run outside its bundle (swift run), it uses whichever Space Juggler runs.
-            launcher: FileManager.default.fileExists(atPath: bundled.path) ? .app(bundled) : .none)
+            launcher: .bundledIfPresent)
         connection.onEvent = { [weak self] in self?.handle($0) }
         connection.onReport = { [weak self] bytes, device in
             self?.sessions.first { $0.id == device }?.ingest(bytes)
@@ -42,7 +41,9 @@ final class Probe {
         switch event {
         case .connected(let version):
             brokerVersion = version
-            problem = version < 4 ? String(localized: "An older Space Juggler is running; it hands over to the probe's in a moment.") : nil
+            // A broker of protocol 1 has neither `describe` nor raw reports; the probe's own takes over in a moment.
+            problem = connection.brokerProtocolVersion ?? 1 < SpaceJuggler.protocolVersion
+                ? String(localized: "An older Space Juggler is running; it hands over to the probe's in a moment.") : nil
         case .disconnected:
             brokerVersion = nil
         case .holding(let holds):
