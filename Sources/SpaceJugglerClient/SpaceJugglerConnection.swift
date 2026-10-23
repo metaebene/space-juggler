@@ -200,13 +200,14 @@ public final class SpaceJugglerConnection {
     private func launch() {
         if let lastLaunch, Date().timeIntervalSince(lastLaunch) < 3 { return }
         lastLaunch = Date()
-        if let newest = place.readNewest(), newest.version > version, newest.exists {
-            return Self.start(newest.isApp ? .app(URL(fileURLWithPath: newest.path)) : .executable(path: newest.path, arguments: newest.arguments))
+        if let newest = place.readNewest(), newest.version > version, newest.isUsable {
+            if newest.isApp { return start(.app(URL(fileURLWithPath: newest.path))) }
+            if case .executable = launcher { return start(.executable(path: newest.path, arguments: newest.arguments)) }
         }
-        Self.start(launcher)
+        start(launcher)
     }
 
-    private static func start(_ launcher: Launcher) {
+    private func start(_ launcher: Launcher) {
         switch launcher {
         case .app(let url):
             let configuration = NSWorkspace.OpenConfiguration()

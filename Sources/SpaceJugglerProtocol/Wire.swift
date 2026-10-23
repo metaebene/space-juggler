@@ -242,6 +242,9 @@ public struct LineDecoder<Message: Decodable> {
 
     public init() {}
 
+    /// Bytes of a line that has not ended yet.
+    public var pendingCount: Int { pending.count }
+
     public mutating func feed(_ data: Data) -> [Message] {
         pending.append(data)
         var messages: [Message] = []

@@ -22,6 +22,14 @@ public struct BrokerPlace: Sendable {
     /// The newest broker that ever ran: a client without a broker starts that one if it is newer than its own.
     public var newest: URL { directory.appendingPathComponent("newest.json") }
 
+    /// Makes the directory, readable by this user alone: the log carries serial numbers, the socket is the way to
+    /// the SpaceMouse (ADR-0009).
+    @discardableResult
+    public func ensureDirectory() -> Bool {
+        (try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                                                  attributes: [.posixPermissions: 0o700])) != nil
+    }
+
     /// How to start a broker: an app bundle (through Launch Services) or a command-line tool with arguments (tests).
     public struct Newest: Codable, Sendable, Equatable {
         public var version: Int
@@ -36,8 +44,11 @@ public struct BrokerPlace: Sendable {
 
         public var isApp: Bool { path.hasSuffix(".app") }
 
-        public var exists: Bool {
-            isApp ? FileManager.default.fileExists(atPath: path) : FileManager.default.isExecutableFile(atPath: path)
+        /// Whether the program is there to be started: an app bundle that is Space Juggler by its bundle identifier
+        /// (not whatever sits at a remembered path by now, ADR-0009), or an executable file.
+        public var isUsable: Bool {
+            isApp ? Bundle(path: path)?.bundleIdentifier == SpaceJuggler.bundleIdentifier
+                  : FileManager.default.isExecutableFile(atPath: path)
         }
     }
 
@@ -46,11 +57,15 @@ public struct BrokerPlace: Sendable {
         return try? JSONDecoder().decode(Newest.self, from: data)
     }
 
-    /// Records a broker as the newest, unless a newer one is recorded whose program still exists.
+    /// Records a broker as the newest, unless a newer one is recorded whose program is still usable.
     public func recordNewest(_ candidate: Newest) {
-        if let known = readNewest(), known.version > candidate.version, known.exists { return }
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try? JSONEncoder().encode(candidate).write(to: newest, options: .atomic)
+        if let known = readNewest(), known.version > candidate.version, known.isUsable { return }
+        ensureDirectory()
+        do {
+            try JSONEncoder().encode(candidate).write(to: newest, options: .atomic)
+        } catch {
+            appendLog("cannot record the newest broker in \(newest.path): \(error.localizedDescription)")
+        }
     }
 
     /// Keeps the log small: above 512 KB it moves to `broker.log.1` (the broker calls this when it starts).
@@ -65,9 +80,10 @@ public struct BrokerPlace: Sendable {
     private static let timestamp = Date.ISO8601FormatStyle(dateSeparator: .dash, dateTimeSeparator: .space, timeZone: .current)
         .year().month().day().time(includingFractionalSeconds: true)
 
-    /// Appends a line, with time and process, to the broker log (for diagnosis; see `rotateLog`).
+    /// Appends a line, with time and process, to the broker log (for diagnosis; see `rotateLog`). The one place
+    /// whose own failure goes unreported.
     public func appendLog(_ text: String) {
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        ensureDirectory()
         let data = Data("\(Date().formatted(Self.timestamp)) [\(getpid())] \(text)\n".utf8)
         if let handle = try? FileHandle(forWritingTo: log) {
             handle.seekToEndOfFile()

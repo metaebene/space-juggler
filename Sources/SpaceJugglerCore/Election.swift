@@ -15,9 +15,9 @@ public enum Election {
 
     /// Blocks for up to about 7 s (startup of the running broker, then its handover).
     public static func run(place: BrokerPlace, version: Int, log: (String) -> Void) -> Outcome {
-        try? FileManager.default.createDirectory(at: place.directory, withIntermediateDirectories: true)
+        place.ensureDirectory()
         let fd = open(place.lock.path, O_CREAT | O_RDWR, 0o600)
-        guard fd >= 0 else { return .failed("cannot open \(place.lock.path)") }
+        guard fd >= 0 else { return .failed("cannot open \(place.lock.path): \(String(cString: strerror(errno)))") }
         if flock(fd, LOCK_EX | LOCK_NB) == 0 { return .elected(lockFile: fd) }
 
         var answer: (running: Int, leaves: Bool)?

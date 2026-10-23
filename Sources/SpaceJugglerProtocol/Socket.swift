@@ -59,6 +59,9 @@ public final class LineConnection<Outgoing: Encodable, Incoming: Decodable> {
     /// About five seconds of a SpaceMouse's motion; nobody wants it later than that (computed: a generic type has no
     /// static stored properties).
     public static var backlogLimit: Int { 64 * 1024 }
+    /// The longest line a peer may send; far above any message (a description with every feature report is ~10 KB).
+    /// A peer that never ends its line is dropped instead of growing the buffer for ever (ADR-0009).
+    public static var lineLimit: Int { 1024 * 1024 }
     private let descriptor: Descriptor
     private var source: DispatchSourceRead?
     private var writer: DispatchSourceWrite?
@@ -148,6 +151,7 @@ public final class LineConnection<Outgoing: Encodable, Incoming: Decodable> {
         if count < 0, errno == EAGAIN || errno == EINTR { return }
         guard count > 0 else { return close() }
         for message in decoder.feed(Data(buffer[0..<count])) { onMessage(message) }
+        if decoder.pendingCount > Self.lineLimit { close() }
     }
 }
 
