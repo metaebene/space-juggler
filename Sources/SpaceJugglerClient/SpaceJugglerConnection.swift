@@ -164,9 +164,7 @@ public final class SpaceJugglerConnection {
         if attempt == 50 { onEvent(.unavailable("Space Juggler could not be reached")) }
         let delay = attempt < 50 ? 0.1 : 2
         if attempt >= 50, attempt % 15 == 0 { launch() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            MainActor.assumeIsolated { self?.connect() }
-        }
+        MainActor.after(delay) { [weak self] in self?.connect() }
     }
 
     private func lost() {

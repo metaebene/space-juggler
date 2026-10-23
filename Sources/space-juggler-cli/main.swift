@@ -21,6 +21,12 @@ func say(_ text: String) {
     fflush(stdout)
 }
 
+func printJSON(_ value: some Encodable) {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    print(String(decoding: try! encoder.encode(value), as: UTF8.self))
+}
+
 struct Options {
     var values: [String: [String]] = [:]
     var flags: Set<String> = []
@@ -116,7 +122,7 @@ MainActor.assumeIsolated {
             }
         }
         client.onReport = { bytes, device in
-            say("[\(name)] \(device) report " + bytes.map { String(format: "%02x", $0) }.joined(separator: " "))
+            say("[\(name)] \(device) report " + bytes.hex())
         }
         client.start()
         keptAlive.append(client)
@@ -130,9 +136,7 @@ MainActor.assumeIsolated {
     case "status":
         ask(.status) { message in
             guard case .status(let status) = message else { return false }
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            print(String(decoding: try! encoder.encode(status), as: UTF8.self))
+            printJSON(status)
             return true
         }
 
@@ -160,9 +164,7 @@ MainActor.assumeIsolated {
         }
         ask(.describe(device: options.positional[0])) { message in
             guard case .description(let description) = message else { return false }
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            print(String(decoding: try! encoder.encode(description), as: UTF8.self))
+            printJSON(description)
             if let parsed = HIDReportDescriptor(description.reportDescriptor) {
                 for report in parsed.reports {
                     print(String(format: "%@ report 0x%02X: %d bytes", report.kind.rawValue, report.id, report.length))

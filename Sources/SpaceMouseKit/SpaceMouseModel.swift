@@ -148,7 +148,7 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
         let receiver = vendorID == 0x256F && productID == universalReceiverProductID
         let name = receiver
             ? (bits.count > 2 ? "SpaceMouse Pro Wireless" : "SpaceMouse Wireless") + " (Universal Receiver)"
-            : product.flatMap { $0.isEmpty ? nil : $0 } ?? String(format: "SpaceMouse %04X:%04X", vendorID, productID)
+            : product?.nonEmpty ?? String(format: "SpaceMouse %04X:%04X", vendorID, productID)
         return SpaceMouseModel(vendorID: vendorID, productID: productID, name: name, buttonBits: buttonBits,
                                knowledge: receiver ? .published : .guessed, axisFullScale: range ?? SpaceMouseAxes.deviceFullScale,
                                hasStatusLED: descriptor.hasLED)

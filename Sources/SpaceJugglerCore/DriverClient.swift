@@ -50,12 +50,10 @@ final class DriverClient {
     func start() {
         guard api == nil, !starting else { return }
         starting = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.registrationDelay) { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, self.starting else { return }
-                self.starting = false
-                self.register()
-            }
+        MainActor.after(Self.registrationDelay) { [weak self] in
+            guard let self, starting else { return }
+            starting = false
+            register()
         }
     }
 

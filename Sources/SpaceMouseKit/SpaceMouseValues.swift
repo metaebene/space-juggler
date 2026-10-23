@@ -184,6 +184,16 @@ public struct SpaceMouseButtons: OptionSet, Sendable, Hashable, Codable, CaseIte
     }
 }
 
+extension Sequence where Element == UInt8 {
+    /// The bytes as two lowercase hex digits each (`08 5a 00`).
+    package func hex(separator: String = " ") -> String { map { String(format: "%02x", $0) }.joined(separator: separator) }
+}
+
+extension String {
+    /// The string, or nil when it is empty (IOKit hands empty strings for properties a device lacks).
+    package var nonEmpty: String? { isEmpty ? nil : self }
+}
+
 /// Decodes the input reports of every SpaceMouse model. From Kugelblitz's copy (itself ported from stagehand's
 /// `SpaceMouseReport` via Spacer), with stagehand's battery, serial number and unknown bits. The report buffer includes
 /// the report ID as byte 0.

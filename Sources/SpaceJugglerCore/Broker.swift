@@ -264,11 +264,9 @@ public final class Broker {
         if settling > 0 {
             guard !settlePending else { return }
             settlePending = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + settling) { [weak self] in
-                MainActor.assumeIsolated {
-                    self?.settlePending = false
-                    self?.arbitrate()
-                }
+            MainActor.after(settling) { [weak self] in
+                self?.settlePending = false
+                self?.arbitrate()
             }
             return
         }
