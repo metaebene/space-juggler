@@ -113,8 +113,10 @@ public final class Broker {
         // The helper comes and goes (login, its own updates, quit by the user). It is an `LSUIElement` app, for which
         // NSWorkspace posts neither didLaunch nor didTerminate (quitting it went unnoticed, 2026-10-15); the list of
         // running apps covers every app and changes on the main run loop.
-        helperWatch = NSWorkspace.shared.observe(\.runningApplications) { [weak self] _, _ in
-            MainActor.assumeIsolated { self?.updateDriverMode() }
+        if usesDevices {
+            helperWatch = NSWorkspace.shared.observe(\.runningApplications) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.updateDriverMode() }
+            }
         }
         scheduleLingerIfIdle()
     }
