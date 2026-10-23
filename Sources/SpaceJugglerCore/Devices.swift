@@ -20,6 +20,9 @@ final class Devices {
         var attempt = 0
     }
 
+    /// The USB port and interface of a device, for a GET on the control pipe; nil over Bluetooth.
+    private typealias USBPath = (location: Int, interface: Int)
+
     var onAxes: (String, SpaceMouseAxes) -> Void = { _, _ in }
     var onButtons: (String, SpaceMouseButtons) -> Void = { _, _ in }
     /// Every input report as it came, while `wantsReports` says somebody takes them (ADR-0006).
@@ -33,6 +36,9 @@ final class Devices {
     private var manager: IOHIDManager?
     /// By registry ID of the manager's device object.
     private var entries: [UInt64: Entry] = [:]
+    /// Appeared, their serial number still being read off the main queue; one gone again before that finished is
+    /// never registered.
+    private var pending: Set<UInt64> = []
     private var wanted = false
     /// 3Dconnexion's helper holds the devices; they are reported as "driver" (ADR-0004).
     var driverHolds = false
@@ -83,104 +89,86 @@ final class Devices {
     /// Output report 4. A device not open is opened for the write and closed again; the Wireless lights only on its
     /// cable (`statusLEDNeedsCable`). Returns why not, or nil.
     func setLED(_ on: Bool, device id: String) -> String? {
-        guard let key = entries.first(where: { $0.value.info.id == id })?.key, let entry = entries[key] else {
-            return "no such device"
-        }
+        guard let (key, entry) = lookup(id) else { return "no such device" }
         if entry.model.statusLEDNeedsCable, entry.info.isBluetooth { return "the LED lights only on the USB cable" }
-        var temporary: IOHIDDevice?
-        let device: IOHIDDevice
-        if let open = entry.device {
-            device = open
-        } else {
-            guard let created = Self.ownDevice(key), IOHIDDeviceOpen(created, IOOptionBits(kIOHIDOptionsTypeSeizeDevice)) == kIOReturnSuccess else {
-                return "device busy"
-            }
-            temporary = created
-            device = created
-        }
-        defer { if let temporary { IOHIDDeviceClose(temporary, IOOptionBits(kIOHIDOptionsTypeNone)) } }
         var report: [UInt8] = [4, on ? 1 : 0]
-        let result = IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 4, &report, report.count)
+        let result = Self.withDevice(key, open: entry.device, options: IOOptionBits(kIOHIDOptionsTypeSeizeDevice)) { device in
+            IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 4, &report, report.count)
+        }
+        guard let result else { return "device busy" }
         guard result == kIOReturnSuccess else { return String(format: "LED not switched (0x%08X)", UInt32(bitPattern: result)) }
         entries[key]?.info.led = on
         onChange()
         return nil
     }
 
-    /// What IOKit says about a device when it appears.
-    private struct Found: Sendable {
-        let vendor: Int, product: Int
-        let transport: String
-        let usbSerial: String?
-        let address: String?
-        let location: Int
-        let interface: Int?
+    /// The listed device with this identity (ADR-0003), with its key.
+    private func lookup(_ id: String) -> (key: UInt64, entry: Entry)? {
+        entries.first { $0.value.info.id == id }.map { ($0.key, $0.value) }
     }
+
+    /// The model a listed device was recognised as.
+    func model(of id: String) -> SpaceMouseModel? { lookup(id)?.entry.model }
 
     private func appeared(_ managed: IOHIDDevice) {
-        guard let key = Self.registryID(of: managed), entries[key] == nil,
-              let vendor = IOHIDDeviceGetProperty(managed, kIOHIDVendorIDKey as CFString) as? Int,
-              let product = IOHIDDeviceGetProperty(managed, kIOHIDProductIDKey as CFString) as? Int else { return }
-        let transport = IOHIDDeviceGetProperty(managed, kIOHIDTransportKey as CFString) as? String ?? "USB"
+        func property(_ key: String) -> Any? { IOHIDDeviceGetProperty(managed, key as CFString) }
+        guard let key = Self.registryID(of: managed), entries[key] == nil, !pending.contains(key),
+              let vendor = property(kIOHIDVendorIDKey) as? Int, let product = property(kIOHIDProductIDKey) as? Int else { return }
+        let transport = property(kIOHIDTransportKey) as? String ?? SpaceMouseDevice.usbTransport
         // 3Dconnexion's driver publishes virtual devices of its own (docs/3dxware-package.md): never a SpaceMouse.
         guard !transport.localizedCaseInsensitiveContains("virtual") else { return }
-        let descriptor = (IOHIDDeviceGetProperty(managed, kIOHIDReportDescriptorKey as CFString) as? Data)
-            .flatMap { HIDReportDescriptor([UInt8]($0)) }
-        guard let model = SpaceMouseModel.recognise(
-            vendorID: vendor, productID: product,
-            product: IOHIDDeviceGetProperty(managed, kIOHIDProductKey as CFString) as? String,
-            descriptor: descriptor) else { return }
-        let found = Found(
-            vendor: vendor, product: product, transport: transport,
-            usbSerial: (IOHIDDeviceGetProperty(managed, kIOHIDSerialNumberKey as CFString) as? String).flatMap { $0.isEmpty ? nil : $0 },
-            address: IOHIDDeviceGetProperty(managed, "DeviceAddress" as CFString) as? String,
-            location: IOHIDDeviceGetProperty(managed, kIOHIDLocationIDKey as CFString) as? Int ?? 0,
-            interface: Self.interfaceNumber(of: IOHIDDeviceGetService(managed)))
-        guard found.usbSerial == nil, let reportID = model.serialFeatureReportID else {
-            return register(key, model: model, found: found, serial: found.usbSerial)
+        let descriptor = (property(kIOHIDReportDescriptorKey) as? Data).flatMap { HIDReportDescriptor([UInt8]($0)) }
+        guard let model = SpaceMouseModel.recognise(vendorID: vendor, productID: product,
+                                                    product: property(kIOHIDProductKey) as? String, descriptor: descriptor) else { return }
+        // The identity (`id`) follows once the serial number is known (`register`).
+        let info = SpaceMouseDevice(id: "", vendorID: vendor, productID: product, name: model.name, transport: transport,
+                                    serialNumber: (property(kIOHIDSerialNumberKey) as? String)?.nonEmpty,
+                                    bluetoothAddress: (property("DeviceAddress") as? String)?.nonEmpty,
+                                    locationID: property(kIOHIDLocationIDKey) as? Int ?? 0,
+                                    knowledge: model.knowledge, buttons: model.buttons, axisFullScale: model.axisFullScale,
+                                    hasLED: model.hasStatusLED)
+        let interface = Self.interfaceNumber(of: IOHIDDeviceGetService(managed))
+        guard info.serialNumber == nil, let reportID = model.serialFeatureReportID else {
+            return register(key, model: model, info: info, interface: interface)
         }
         // The serial number (ADR-0003): a GET takes a round trip over Bluetooth, so off the main queue.
-        let usb = found.transport.caseInsensitiveCompare("USB") == .orderedSame
+        pending.insert(key)
+        let usb = Self.usbPath(of: info, interface: interface)
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let bytes = Self.getFeature(key, reportID: reportID, length: 8)
-                ?? (usb ? Self.getFeatureOverControlPipe(location: found.location, interface: found.interface ?? 0,
-                                                         reportID: reportID, length: 8) : nil)
-            let serial = bytes.flatMap(SpaceMouseReport.serialNumber)
-            Task { @MainActor in self?.register(key, model: model, found: found, serial: serial) }
+            let serial = Self.readFeature(key, reportID: reportID, length: 8, device: nil, usb: usb)
+                .flatMap { SpaceMouseReport.serialNumber($0.bytes) }
+            Task { @MainActor in
+                guard let self, self.pending.remove(key) != nil else { return }
+                var info = info
+                info.serialNumber = serial
+                self.register(key, model: model, info: info, interface: interface)
+            }
         }
     }
 
-    private func register(_ key: UInt64, model: SpaceMouseModel, found: Found, serial: String?) {
+    private func register(_ key: UInt64, model: SpaceMouseModel, info: SpaceMouseDevice, interface: Int?) {
         guard entries[key] == nil else { return }
-        let id = Self.identity(serial: serial, transport: found.transport, address: found.address, vendor: found.vendor,
-                               product: found.product, location: found.location,
-                               slot: found.product == SpaceMouseModel.universalReceiverProductID ? found.interface : nil)
-        entries[key] = Entry(info: SpaceMouseDevice(id: id, vendorID: found.vendor, productID: found.product, name: model.name,
-                                                    transport: found.transport, serialNumber: serial,
-                                                    bluetoothAddress: found.address.flatMap { $0.isEmpty ? nil : $0 },
-                                                    locationID: found.location, knowledge: model.knowledge,
-                                                    buttons: model.buttons, axisFullScale: model.axisFullScale,
-                                                    hasLED: model.hasStatusLED),
-                             model: model, interface: found.interface)
-        log("device appeared: \(model) \(id) (\(found.transport))")
+        var info = info
+        info.id = Self.identity(of: info, slot: info.productID == SpaceMouseModel.universalReceiverProductID ? interface : nil)
+        entries[key] = Entry(info: info, model: model, interface: interface)
+        log("device appeared: \(model) \(info.id) (\(info.transport))")
         if wanted { open(key) }
         onChange()
     }
 
     /// Serial number, else Bluetooth address, else model + USB port (ADR-0003), and the slot on a Universal Receiver
     /// (ADR-0005).
-    nonisolated static func identity(serial: String?, transport: String, address: String?, vendor: Int, product: Int,
-                                     location: Int, slot: Int? = nil) -> String {
-        if let serial { return "serial:\(serial)" }
-        if transport.caseInsensitiveCompare("Bluetooth") == .orderedSame, let address, !address.isEmpty {
+    nonisolated static func identity(of device: SpaceMouseDevice, slot: Int? = nil) -> String {
+        if let serial = device.serialNumber { return "serial:\(serial)" }
+        if device.isBluetooth, let address = device.bluetoothAddress?.nonEmpty {
             return "bt:\(address.lowercased().replacingOccurrences(of: "-", with: ":"))"
         }
-        return String(format: "port:%04x:%04x@%08x", vendor, product, location) + (slot.map { "/\($0)" } ?? "")
+        return String(format: "port:%04x:%04x@%08x", device.vendorID, device.productID, device.locationID ?? 0)
+            + (slot.map { "/\($0)" } ?? "")
     }
 
-    /// The model a listed device was recognised as.
-    func model(of id: String) -> SpaceMouseModel? {
-        entries.values.first { $0.info.id == id }?.model
+    private nonisolated static func usbPath(of device: SpaceMouseDevice, interface: Int?) -> USBPath? {
+        device.isUSB ? (device.locationID ?? 0, interface ?? 0) : nil
     }
 
     /// The `bInterfaceNumber` of the USB interface a HID device sits on; nil over Bluetooth.
@@ -189,83 +177,84 @@ final class Devices {
                                         IOOptionBits(kIORegistryIterateRecursively | kIORegistryIterateParents)) as? Int
     }
 
-    /// A feature report through a HID device object of our own (opened without seizing, closed again), or through
-    /// `device` when it is open already; report ID first. Nil when the GET fails.
-    private nonisolated static func getFeature(_ key: UInt64, reportID: UInt8, length: Int, device open: IOHIDDevice? = nil) -> [UInt8]? {
-        let device: IOHIDDevice
-        if let open {
-            device = open
-        } else {
-            guard let own = ownDevice(key), IOHIDDeviceOpen(own, IOOptionBits(kIOHIDOptionsTypeNone)) == kIOReturnSuccess else {
-                return nil
-            }
-            device = own
-        }
-        defer { if open == nil { IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone)) } }
-        var buffer = [UInt8](repeating: 0, count: max(length, 2))
-        buffer[0] = reportID
-        var count = CFIndex(buffer.count)
-        guard IOHIDDeviceGetReport(device, kIOHIDReportTypeFeature, CFIndex(reportID), &buffer, &count) == kIOReturnSuccess else {
-            return nil
-        }
-        return Array(buffer.prefix(Int(count)))
+    // MARK: - Feature reports (GET only)
+
+    /// Runs `body` with `open` when the device is open already, else with a device object of our own, opened with
+    /// `options` for the call and closed again; nil when that open fails.
+    private nonisolated static func withDevice<Result>(_ key: UInt64, open: IOHIDDevice?, options: IOOptionBits,
+                                                       body: (IOHIDDevice) -> Result) -> Result? {
+        if let open { return body(open) }
+        guard let own = ownDevice(key), IOHIDDeviceOpen(own, options) == kIOReturnSuccess else { return nil }
+        defer { IOHIDDeviceClose(own, IOOptionBits(kIOHIDOptionsTypeNone)) }
+        return body(own)
     }
 
-    /// The same GET as a USB class request on the default pipe, for a device someone else holds (3Dconnexion's helper
-    /// seizes every SpaceMouse, so opening its HID device fails): nothing is opened or written.
-    private nonisolated static func getFeatureOverControlPipe(location: Int, interface: Int, reportID: UInt8,
-                                                              length: Int) -> [UInt8]? {
+    /// A feature report, report ID first: through the HID device (`open`, else one of our own, opened without
+    /// seizing), on USB else as a class request on the control pipe, for a device someone else holds (3Dconnexion's
+    /// helper seizes every SpaceMouse, so opening its HID device fails). Nil when every way fails; `via` says which
+    /// worked.
+    private nonisolated static func readFeature(_ key: UInt64, reportID: UInt8, length: Int, device open: IOHIDDevice?,
+                                                usb: USBPath?) -> (bytes: [UInt8], via: String)? {
+        if let bytes = getFeature(key, reportID: reportID, length: length, device: open) { return (bytes, "HID device") }
+        guard let usb, let bytes = getFeatureOverControlPipe(usb, reportID: reportID, length: length) else { return nil }
+        return (bytes, "control pipe")
+    }
+
+    private nonisolated static func getFeature(_ key: UInt64, reportID: UInt8, length: Int, device open: IOHIDDevice?) -> [UInt8]? {
+        withDevice(key, open: open, options: IOOptionBits(kIOHIDOptionsTypeNone)) { device -> [UInt8]? in
+            var buffer = [UInt8](repeating: 0, count: max(length, 2))
+            buffer[0] = reportID
+            var count = CFIndex(buffer.count)
+            guard IOHIDDeviceGetReport(device, kIOHIDReportTypeFeature, CFIndex(reportID), &buffer, &count) == kIOReturnSuccess else {
+                return nil
+            }
+            return Array(buffer.prefix(Int(count)))
+        } ?? nil
+    }
+
+    /// Nothing is opened or written: a GET_REPORT on the default pipe.
+    private nonisolated static func getFeatureOverControlPipe(_ usb: USBPath, reportID: UInt8, length: Int) -> [UInt8]? {
         let matching = IOServiceMatching("IOUSBHostDevice") as NSMutableDictionary
-        matching[kIOPropertyMatchKey] = ["locationID": location]
+        matching[kIOPropertyMatchKey] = ["locationID": usb.location]
         let service = IOServiceGetMatchingService(kIOMainPortDefault, matching)
         guard service != 0 else { return nil }
         defer { IOObjectRelease(service) }
-        guard let usb = try? IOUSBHostDevice(__ioService: service, options: [], queue: nil, interestHandler: nil) else {
+        guard let device = try? IOUSBHostDevice(__ioService: service, options: [], queue: nil, interestHandler: nil) else {
             return nil
         }
-        defer { usb.destroy() }
+        defer { device.destroy() }
         var request = IOUSBDeviceRequest()
         request.bmRequestType = 0xA1                        // class request to an interface, device to host
         request.bRequest = 0x01                             // GET_REPORT
         request.wValue = 0x0300 | UInt16(reportID)          // feature report
-        request.wIndex = UInt16(interface)
+        request.wIndex = UInt16(usb.interface)
         request.wLength = UInt16(max(length, 2))
         let data = NSMutableData(length: max(length, 2))!
         var count = 0
-        guard (try? usb.__send(request, data: data, bytesTransferred: &count, completionTimeout: 1)) != nil else { return nil }
+        guard (try? device.__send(request, data: data, bytesTransferred: &count, completionTimeout: 1)) != nil else { return nil }
         return [UInt8](Data(referencing: data).prefix(count))
     }
 
     /// Everything that can be read about a device without changing it (ADR-0006), off the main queue.
     func describe(_ id: String, completion: @escaping @MainActor (DeviceDescription) -> Void) {
-        guard let (key, entry) = entries.first(where: { $0.value.info.id == id }) else {
-            return completion(DeviceDescription(device: id, error: "no such device"))
-        }
-        guard let service = Optional(IOServiceGetMatchingService(kIOMainPortDefault, IORegistryEntryIDMatching(key))),
-              service != 0 else {
-            return completion(DeviceDescription(device: id, error: "not in the IORegistry"))
-        }
+        guard let (key, entry) = lookup(id) else { return completion(DeviceDescription(device: id, error: "no such device")) }
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IORegistryEntryIDMatching(key))
+        guard service != 0 else { return completion(DeviceDescription(device: id, error: "not in the IORegistry")) }
+        defer { IOObjectRelease(service) }
         let properties = Self.properties(of: service)
         let bytes = (IORegistryEntryCreateCFProperty(service, kIOHIDReportDescriptorKey as CFString, kCFAllocatorDefault, 0)?
             .takeRetainedValue() as? Data).map { [UInt8]($0) } ?? []
-        IOObjectRelease(service)
         let features = HIDReportDescriptor(bytes)?.reports.filter { $0.kind == .feature } ?? []
         let open = entry.device.map { UncheckedSendable($0) }
-        let usb = entry.info.transport.caseInsensitiveCompare("USB") == .orderedSame
-        let location = entry.info.locationID ?? 0, interface = entry.interface ?? 0
+        let usb = Self.usbPath(of: entry.info, interface: entry.interface)
         DispatchQueue.global(qos: .userInitiated).async {
             var via: String?
             let reports = features.map { report -> DeviceDescription.FeatureReport in
-                if let read = Self.getFeature(key, reportID: report.id, length: report.length, device: open?.value) {
-                    via = via ?? "HID device"
-                    return .init(id: Int(report.id), bytes: read)
+                guard let read = Self.readFeature(key, reportID: report.id, length: report.length, device: open?.value, usb: usb) else {
+                    return .init(id: Int(report.id), error: "GET failed")
                 }
-                if usb, let read = Self.getFeatureOverControlPipe(location: location, interface: interface,
-                                                                   reportID: report.id, length: report.length) {
-                    via = via ?? "control pipe"
-                    return .init(id: Int(report.id), bytes: read)
-                }
-                return .init(id: Int(report.id), error: "GET failed")
+                via = via ?? read.via
+                return .init(id: Int(report.id), bytes: read.bytes)
             }
             let description = DeviceDescription(device: id, properties: properties, reportDescriptor: bytes,
                                                 featureReports: reports, featureReportsVia: via)
@@ -287,7 +276,7 @@ final class Devices {
             switch value {
             case let number as NSNumber: number.stringValue
             case let string as String: string
-            case let data as Data: data.map { String(format: "%02x", $0) }.joined()
+            case let data as Data: data.hex(separator: "")
             default: "\(value)".split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
             }
         }
@@ -305,8 +294,12 @@ final class Devices {
         return result
     }
 
+    // MARK: - Opening and closing
+
     private func vanished(_ managed: IOHIDDevice) {
-        guard let key = Self.registryID(of: managed), let entry = entries[key] else { return }
+        guard let key = Self.registryID(of: managed) else { return }
+        pending.remove(key)
+        guard let entry = entries[key] else { return }
         close(key)
         entries[key] = nil
         log("device gone: \(entry.info.name) \(entry.info.id)")
@@ -345,19 +338,17 @@ final class Devices {
         IOHIDDeviceSetDispatchQueue(device, .main)
         let result = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeSeizeDevice))
         guard result == kIOReturnSuccess else {
-            IOHIDDeviceSetCancelHandler(device) { withExtendedLifetime((device, reports)) {} }
-            IOHIDDeviceCancel(device)
+            cancel(device, keeping: reports)
             let busy = result == kIOReturnExclusiveAccess
-            entries[key]?.info.state = busy ? "busy" : String(format: "open failed (0x%08X)", UInt32(bitPattern: result))
-            if entries[key]!.attempt == 0 { log("seize \(id): \(entries[key]!.info.state)") }
+            let state = busy ? "busy" : String(format: "open failed (0x%08X)", UInt32(bitPattern: result))
+            entries[key]?.info.state = state
+            if entry.attempt == 0 { log("seize \(id): \(state)") }
             // Another process still holds it (a broker handing over closes first): retry for 2 s.
-            if busy, entries[key]!.attempt < 20 {
+            if busy, entry.attempt < 20 {
                 entries[key]?.attempt += 1
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                    MainActor.assumeIsolated {
-                        guard let self, self.wanted else { return }
-                        self.open(key)
-                    }
+                MainActor.after(0.1) { [weak self] in
+                    guard let self, wanted else { return }
+                    open(key)
                 }
             } else {
                 onChange()
@@ -381,15 +372,21 @@ final class Devices {
     }
 
     private func close(_ key: UInt64) {
-        guard let device = entries[key]?.device, let reports = entries[key]?.reports else { return }
+        guard let entry = entries[key], let device = entry.device, let reports = entry.reports else { return }
         IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone))
-        IOHIDDeviceSetCancelHandler(device) { withExtendedLifetime((device, reports)) {} }
-        IOHIDDeviceCancel(device)
+        cancel(device, keeping: reports)
         entries[key]?.device = nil
         entries[key]?.reports = nil
         entries[key]?.info.state = "closed"
-        log("released \(entries[key]!.info.id)")
+        log("released \(entry.info.id)")
         onChange()
+    }
+
+    /// Cancels a device object; it and its report buffer live until the cancel handler ran, as IOKit may still
+    /// deliver into the buffer.
+    private func cancel(_ device: IOHIDDevice, keeping reports: Reports) {
+        IOHIDDeviceSetCancelHandler(device) { withExtendedLifetime((device, reports)) {} }
+        IOHIDDeviceCancel(device)
     }
 
     private nonisolated static func ownDevice(_ key: UInt64) -> IOHIDDevice? {

@@ -84,15 +84,20 @@ struct WireTests {
 struct IdentityTests {
     /// Serial number first, then the Bluetooth address, then model and USB port (ADR-0003).
     @Test func identityOrder() {
-        #expect(Devices.identity(serial: "Z5024520019", transport: "Bluetooth", address: "AC-FA-E4-00-11-22", vendor: 0x256F,
-                                 product: 0xC63A, location: 1) == "serial:Z5024520019")
-        #expect(Devices.identity(serial: nil, transport: "Bluetooth", address: "AC-FA-E4-00-11-22", vendor: 0x256F,
-                                 product: 0xC63A, location: 1) == "bt:ac:fa:e4:00:11:22")
-        #expect(Devices.identity(serial: nil, transport: "USB", address: nil, vendor: 0x046D, product: 0xC626,
-                                 location: 0x0211_0000) == "port:046d:c626@02110000")
+        func device(serial: String? = nil, transport: String, address: String? = nil, vendor: Int, product: Int,
+                    location: Int) -> SpaceMouseDevice {
+            SpaceMouseDevice(id: "", vendorID: vendor, productID: product, name: "?", transport: transport,
+                             serialNumber: serial, bluetoothAddress: address, locationID: location)
+        }
+        #expect(Devices.identity(of: device(serial: "Z5024520019", transport: "Bluetooth", address: "AC-FA-E4-00-11-22",
+                                            vendor: 0x256F, product: 0xC63A, location: 1)) == "serial:Z5024520019")
+        #expect(Devices.identity(of: device(transport: "Bluetooth", address: "AC-FA-E4-00-11-22", vendor: 0x256F,
+                                            product: 0xC63A, location: 1)) == "bt:ac:fa:e4:00:11:22")
+        #expect(Devices.identity(of: device(transport: "USB", vendor: 0x046D, product: 0xC626, location: 0x0211_0000))
+            == "port:046d:c626@02110000")
         // A Bluetooth device without an address falls back to the port form.
-        #expect(Devices.identity(serial: nil, transport: "Bluetooth", address: "", vendor: 0x256F, product: 0xC63A,
-                                 location: 7) == "port:256f:c63a@00000007")
+        #expect(Devices.identity(of: device(transport: "Bluetooth", address: "", vendor: 0x256F, product: 0xC63A, location: 7))
+            == "port:256f:c63a@00000007")
     }
 }
 
@@ -147,7 +152,7 @@ struct ProbeMessageTests {
     }
 
     @Test func receiverSlotsHaveIdentitiesOfTheirOwn() {
-        #expect(Devices.identity(serial: nil, transport: "USB", address: nil, vendor: 0x256F, product: 0xC652,
-                                 location: 0x0211_0000, slot: 2) == "port:256f:c652@02110000/2")
+        let slot = SpaceMouseDevice(id: "", vendorID: 0x256F, productID: 0xC652, name: "?", transport: "USB", locationID: 0x0211_0000)
+        #expect(Devices.identity(of: slot, slot: 2) == "port:256f:c652@02110000/2")
     }
 }
