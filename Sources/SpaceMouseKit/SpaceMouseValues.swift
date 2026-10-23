@@ -157,12 +157,30 @@ public struct SpaceMouseButtons: OptionSet, Sendable, Hashable, Codable, CaseIte
     public var each: [SpaceMouseButtons] { Self.allCases.filter { contains($0) } }
 
     /// The name of one button, as printed on the key.
-    public var name: String {
-        let names = ["1 (left)", "2 (right)", "1", "2", "3", "4", "MENU", "FIT", "T", "R", "F", "Roll", "ESC", "SHIFT",
-                     "CTRL", "ALT", "Rotation lock", "5", "6", "7", "8", "9", "10", "11", "12", "L", "B", "BK",
-                     "Roll back", "ISO1", "ISO2", "ENTER", "DEL", "TAB", "SPACE", "V1", "V2", "V3", "+", "−",
-                     "DOMINANT", "PAN/ZOOM", "CONFIG"]
-        return each.map { names[$0.rawValue.trailingZeroBitCount] }.joined(separator: " + ")
+    public var name: String { each.map { Self.names[$0] ?? "?" }.joined(separator: " + ") }
+
+    private static let names: [SpaceMouseButtons: String] = [
+        .left: "1 (left)", .right: "2 (right)", .key1: "1", .key2: "2", .key3: "3", .key4: "4", .menu: "MENU", .fit: "FIT",
+        .viewTop: "T", .viewRight: "R", .viewFront: "F", .viewRoll: "Roll", .escape: "ESC", .shift: "SHIFT",
+        .control: "CTRL", .alt: "ALT", .rotationLock: "Rotation lock", .key5: "5", .key6: "6", .key7: "7", .key8: "8",
+        .key9: "9", .key10: "10", .key11: "11", .key12: "12", .viewLeft: "L", .viewBottom: "B", .viewBack: "BK",
+        .viewRollReverse: "Roll back", .viewIso1: "ISO1", .viewIso2: "ISO2", .enter: "ENTER", .delete: "DEL", .tab: "TAB",
+        .space: "SPACE", .view1: "V1", .view2: "V2", .view3: "V3", .plus: "+", .minus: "−", .dominant: "DOMINANT",
+        .panZoom: "PAN/ZOOM", .config: "CONFIG",
+    ]
+
+    /// The two buttons a program uses that only knows two, among `all`: left and right where the device has them (the
+    /// Compact), else MENU and FIT (the Pro, Space Glider ADR-0025), else keys 1 and 2 (the SpaceTraveler).
+    public static func twoButtons(of all: SpaceMouseButtons) -> (left: SpaceMouseButtons, right: SpaceMouseButtons) {
+        all.contains(.left) ? (.left, .right) : all.contains(.menu) ? (.menu, .fit) : (.key1, .key2)
+    }
+
+    /// Those held, as a program sees them that only knows two buttons: `.left` and `.right` for `pair`.
+    public func asTwoButtons(_ pair: (left: SpaceMouseButtons, right: SpaceMouseButtons)) -> SpaceMouseButtons {
+        var two: SpaceMouseButtons = []
+        if contains(pair.left) { two.insert(.left) }
+        if contains(pair.right) { two.insert(.right) }
+        return two
     }
 }
 

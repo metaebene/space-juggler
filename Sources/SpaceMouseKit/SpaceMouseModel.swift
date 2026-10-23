@@ -197,19 +197,11 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
         vendorID == 0x256F && productID != Self.universalReceiverProductID ? SpaceMouseReport.serialReportID : nil
     }
 
-    /// The two buttons a program uses that only knows two: the Compact's left and right, else MENU and FIT
-    /// (Space Glider ADR-0025), else keys 1 and 2 (the SpaceTraveler).
-    public var twoButtons: (left: SpaceMouseButtons, right: SpaceMouseButtons) {
-        buttons.contains(.left) ? (.left, .right) : buttons.contains(.menu) ? (.menu, .fit) : (.key1, .key2)
-    }
+    /// The two buttons a program uses that only knows two (`SpaceMouseButtons.twoButtons(of:)`).
+    public var twoButtons: (left: SpaceMouseButtons, right: SpaceMouseButtons) { SpaceMouseButtons.twoButtons(of: buttons) }
 
     /// `held` as a program sees it that only knows two buttons: `.left` and `.right` (`twoButtons`).
-    public func asTwoButtons(_ held: SpaceMouseButtons) -> SpaceMouseButtons {
-        var two: SpaceMouseButtons = []
-        if held.contains(twoButtons.left) { two.insert(.left) }
-        if held.contains(twoButtons.right) { two.insert(.right) }
-        return two
-    }
+    public func asTwoButtons(_ held: SpaceMouseButtons) -> SpaceMouseButtons { held.asTwoButtons(twoButtons) }
 
     /// The buttons held according to a bitmap in the device's numbering (report 3, or the driver's state).
     public func buttons(_ bitmap: UInt64) -> SpaceMouseButtons {

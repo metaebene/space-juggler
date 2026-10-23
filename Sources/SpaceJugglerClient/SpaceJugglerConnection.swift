@@ -93,12 +93,9 @@ public final class SpaceJugglerConnection {
     /// The same for a program that only knows two buttons, `.left` and `.right`: the Compact's two, the Pro's MENU and
     /// FIT (`SpaceMouseModel.twoButtons`).
     public var heldTwoButtons: SpaceMouseButtons {
-        held.reduce([]) { result, entry in
-            guard let two = devices.first(where: { $0.id == entry.key })?.twoButtons else { return result }
-            var both = result
-            if entry.value.contains(two.left) { both.insert(.left) }
-            if entry.value.contains(two.right) { both.insert(.right) }
-            return both
+        held.reduce(into: []) { result, entry in
+            guard let device = devices.first(where: { $0.id == entry.key }) else { return }
+            result.formUnion(entry.value.asTwoButtons(device.twoButtons))
         }
     }
 

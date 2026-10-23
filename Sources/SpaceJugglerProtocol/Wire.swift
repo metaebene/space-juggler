@@ -91,15 +91,16 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
 
     /// The catalog's entry; nil for a model the catalog lacks (`buttons`, `hasLED` tell about it).
     public var model: SpaceMouseModel? { SpaceMouseModel.matching(vendorID: vendorID, productID: productID) }
-    public var isBluetooth: Bool { transport.caseInsensitiveCompare("Bluetooth") == .orderedSame }
+    /// IOKit's names of the transports.
+    public static let usbTransport = "USB"
+    public static let bluetoothTransport = "Bluetooth"
+    public var isUSB: Bool { transport.caseInsensitiveCompare(Self.usbTransport) == .orderedSame }
+    public var isBluetooth: Bool { transport.caseInsensitiveCompare(Self.bluetoothTransport) == .orderedSame }
 
     /// The two buttons a program uses that only knows two: left and right where the device has them, else MENU and
-    /// FIT, else keys 1 and 2 (`SpaceMouseModel.twoButtons`).
+    /// FIT, else keys 1 and 2 (`SpaceMouseButtons.twoButtons(of:)`).
     public var twoButtons: (left: SpaceMouseButtons, right: SpaceMouseButtons) {
-        let all = buttons ?? model?.buttons ?? [.left, .right]
-        if all.contains(.left) { return (.left, .right) }
-        if all.contains(.menu) { return (.menu, .fit) }
-        return all.contains(.key1) ? (.key1, .key2) : (.left, .right)
+        SpaceMouseButtons.twoButtons(of: buttons ?? model?.buttons ?? [.left, .right])
     }
 
     /// Whether its LED can be switched now (it has one, and it lights on this transport).
