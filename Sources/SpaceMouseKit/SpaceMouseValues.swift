@@ -196,12 +196,6 @@ public enum SpaceMouseReport {
     /// Vendor feature report with the serial number of the SpaceMouse Wireless and the Compact (`serialFeatureReportID`).
     public static let serialReportID: UInt8 = 0x08
 
-    /// The bitmap of report 3 in the device's numbering (its first 64 bits); nil for other reports.
-    public static func buttonBitmap(_ bytes: UnsafeBufferPointer<UInt8>) -> UInt64? {
-        guard bytes.count >= 2, bytes[0] == buttonReportID else { return nil }
-        return bytes.dropFirst().prefix(8).enumerated().reduce(0) { $0 | UInt64($1.element) << UInt64(8 * $1.offset) }
-    }
-
     /// The bits set in report 3, all of them (the Enterprise's reach bit 175); nil for other reports.
     public static func buttonBits(_ bytes: UnsafeBufferPointer<UInt8>) -> [Int]? {
         guard bytes.count >= 2, bytes[0] == buttonReportID else { return nil }
