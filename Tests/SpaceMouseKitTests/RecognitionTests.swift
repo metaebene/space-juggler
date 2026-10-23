@@ -69,6 +69,14 @@ struct HIDReportDescriptorTests {
                                                             0x95, 0x01, 0x81, 0x02]))
         #expect(descriptor.reports.first?.fields.first?.logicalMaximum == 255)
     }
+
+    @Test func repeatedUsagesAreOneButtonEach() throws {
+        // Button page, Usage Minimum 1, Usage Maximum 2, but four bits: elements beyond the last usage repeat it
+        // (HID 6.2.2.8), so there are two buttons, not four.
+        let descriptor = try #require(HIDReportDescriptor([0x05, 0x09, 0x19, 0x01, 0x29, 0x02, 0x15, 0x00, 0x25, 0x01,
+                                                            0x75, 0x01, 0x95, 0x04, 0x81, 0x02]))
+        #expect(descriptor.buttonUsages == [1, 2])
+    }
 }
 
 struct RecognitionTests {

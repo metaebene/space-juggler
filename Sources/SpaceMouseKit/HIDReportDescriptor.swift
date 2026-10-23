@@ -148,31 +148,34 @@ public struct HIDReportDescriptor: Sendable, Equatable {
     /// Whether one of the application collections is a Multi-axis Controller.
     public var isMultiAxisController: Bool { applications.contains(Self.multiAxisController) }
 
+    /// The fields of every input report, in order.
+    private var inputFields: [Field] { reports.filter { $0.kind == .input }.flatMap(\.fields) }
+
+    /// Generic Desktop X … Rz.
+    private static func isAxis(_ usage: Usage) -> Bool { usage.page == 0x01 && (0x30...0x35).contains(usage.id) }
+
     /// The largest logical maximum of the six axes (Generic Desktop X … Rz) in an input report.
     public var axisLogicalMaximum: Int? {
-        let axes = 0x30...0x35
-        return reports.filter { $0.kind == .input }.flatMap(\.fields).filter { field in
-            !field.isConstant && (0..<field.count).contains { field.usage($0).map { $0.page == 0x01 && axes.contains($0.id) } ?? false }
+        inputFields.filter { field in
+            !field.isConstant && (0..<field.count).contains { field.usage($0).map(Self.isAxis) ?? false }
         }.map(\.logicalMaximum).max()
     }
 
     /// Whether the axes are declared relative (they are absolute in fact on every SpaceMouse, docs/models.md).
     public var axesDeclaredRelative: Bool {
-        reports.filter { $0.kind == .input }.flatMap(\.fields).contains { field in
-            field.isRelative && field.usages.contains { $0.page == 0x01 && (0x30...0x35).contains($0.id) }
-        }
+        inputFields.contains { $0.isRelative && $0.usages.contains(where: Self.isAxis) }
     }
 
-    /// The buttons of the input reports by usage (1 = the first), in order: bit n of report 3 is usage n + 1.
+    /// The buttons of the input reports by usage (1 = the first), in order: bit n of report 3 is usage n + 1. Each
+    /// once: elements beyond a field's last usage repeat it (HID 6.2.2.8) and are the same button.
     public var buttonUsages: [Int] {
-        reports.filter { $0.kind == .input }.flatMap(\.fields).filter { !$0.isConstant }.flatMap { field -> [Int] in
+        var seen: Set<Int> = []
+        return inputFields.filter { !$0.isConstant }.flatMap { field -> [Int] in
             guard field.usages.contains(where: { $0.page == Self.buttonPage }) else { return [] }
-            if field.isVariable {
-                return (0..<field.count).compactMap { field.usage($0) }.filter { $0.page == Self.buttonPage }.map(\.id)
-            }
-            // An array: every usage it lists can be reported.
-            return field.usages.filter { $0.page == Self.buttonPage }.map(\.id)
-        }
+            // An array lists every usage it can report; a variable has one per element.
+            let usages = field.isVariable ? (0..<field.count).compactMap { field.usage($0) } : field.usages
+            return usages.filter { $0.page == Self.buttonPage }.map(\.id)
+        }.filter { seen.insert($0).inserted }
     }
 
     /// Whether an output report carries an indicator LED (report 4 on every SpaceMouse that has one).
