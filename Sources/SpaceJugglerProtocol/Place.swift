@@ -61,12 +61,14 @@ public struct BrokerPlace: Sendable {
         try? FileManager.default.moveItem(at: log, to: old)
     }
 
+    /// `2026-10-23 14:03:05.123`, local time.
+    private static let timestamp = Date.ISO8601FormatStyle(dateSeparator: .dash, dateTimeSeparator: .space, timeZone: .current)
+        .year().month().day().time(includingFractionalSeconds: true)
+
     /// Appends a line, with time and process, to the broker log (for diagnosis; see `rotateLog`).
     public func appendLog(_ text: String) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-        let data = Data("\(formatter.string(from: Date())) [\(getpid())] \(text)\n".utf8)
+        let data = Data("\(Date().formatted(Self.timestamp)) [\(getpid())] \(text)\n".utf8)
         if let handle = try? FileHandle(forWritingTo: log) {
             handle.seekToEndOfFile()
             handle.write(data)

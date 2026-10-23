@@ -56,7 +56,8 @@ public enum UnixSocket {
 @MainActor
 public final class LineConnection<Outgoing: Encodable, Incoming: Decodable> {
     public let fd: Int32
-    /// About five seconds of a SpaceMouse's motion; nobody wants it later than that.
+    /// About five seconds of a SpaceMouse's motion; nobody wants it later than that (computed: a generic type has no
+    /// static stored properties).
     public static var backlogLimit: Int { 64 * 1024 }
     private let descriptor: Descriptor
     private var source: DispatchSourceRead?
