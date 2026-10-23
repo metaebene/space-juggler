@@ -225,12 +225,14 @@ public struct BrokerStatus: Codable, Sendable, Equatable {
     /// Space Juggler goes through 3Dconnexion's driver, whose helper holds the devices (ADR-0004); nil = no.
     public var driver: Bool?
 
-    public init(version: Int, processID: Int32, frontmostApp: String?, devices: [SpaceMouseDevice], clients: [Client]) {
+    public init(version: Int, processID: Int32, frontmostApp: String?, devices: [SpaceMouseDevice], clients: [Client],
+                driver: Bool? = nil) {
         self.version = version
         self.processID = processID
         self.frontmostApp = frontmostApp
         self.devices = devices
         self.clients = clients
+        self.driver = driver
     }
 }
 

@@ -8,10 +8,12 @@ import SpaceJugglerProtocol
 public final class Broker {
     private struct Client {
         let connection: LineConnection<BrokerMessage, ClientMessage>
-        var name = "?"
-        var greeted = false
-        var protocolVersion = 1
+        /// Its first message; nil until it came.
+        var hello: Hello?
         var claimant: Claimant?
+
+        var name: String { hello?.name ?? "?" }
+        var protocolVersion: Int { hello?.protocolVersion ?? 1 }
     }
 
     public let version: Int
@@ -70,6 +72,8 @@ public final class Broker {
         listenFD = fd
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
         source.setEventHandler { [weak self] in MainActor.assumeIsolated { self?.accept() } }
+        // The socket closes once the source is done with it, never while it is still registered.
+        source.setCancelHandler { Darwin.close(fd) }
         acceptSource = source
         source.resume()
         say("Space Juggler v\(version) (pid \(getpid())) listening")
@@ -83,7 +87,7 @@ public final class Broker {
         devices.onChange = { [weak self] in
             guard let self else { return }
             let list = devices.list
-            for client in clients.values where client.greeted { client.connection.send(.devices(list)) }
+            for client in clients.values where client.hello != nil { client.connection.send(.devices(list)) }
             onChange()
         }
         driver.log = { [weak self] in self?.say($0) }
@@ -118,13 +122,12 @@ public final class Broker {
     // MARK: - For the menu
 
     public var status: BrokerStatus {
-        var status = BrokerStatus(
+        BrokerStatus(
             version: version, processID: getpid(), frontmostApp: frontmost.app, devices: devices.list,
             clients: clients.compactMap { id, client in
                 client.claimant.map { .init(id: id, name: client.name, processID: $0.processID, claim: $0.claim, holds: id == holder) }
-            }.sorted { $0.id < $1.id })
-        status.driver = driverMode
-        return status
+            }.sorted { $0.id < $1.id },
+            driver: driverMode)
     }
 
     /// The device the driver's input is put down to: the driver merges every SpaceMouse and does not say which one
@@ -182,9 +185,7 @@ public final class Broker {
         guard let connection = clients[id]?.connection else { return }
         switch message {
         case .hello(let hello):
-            clients[id]?.name = hello.name
-            clients[id]?.greeted = true
-            clients[id]?.protocolVersion = hello.protocolVersion
+            clients[id]?.hello = hello
             connection.send(.welcome(version: version, protocolVersion: SpaceJuggler.protocolVersion))
             connection.send(.devices(devices.list))
             if hello.protocolVersion != SpaceJuggler.protocolVersion { say("\(hello.name) speaks protocol \(hello.protocolVersion)") }
@@ -298,7 +299,6 @@ public final class Broker {
         devices.stop()
         driver.stop()
         acceptSource?.cancel()
-        Darwin.close(listenFD)
         for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         helperWatch = nil
         for client in clients.values { client.connection.close() }
