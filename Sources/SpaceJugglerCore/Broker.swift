@@ -65,8 +65,11 @@ public final class Broker {
         startedAt = Date()
         place.rotateLog()
         place.recordNewest(record)
-        guard let fd = UnixSocket.listen(at: place.socket.path) else {
-            say("cannot listen at \(place.socket.path)")
+        let fd: Int32
+        do {
+            fd = try UnixSocket.listen(at: place.socket.path)
+        } catch {
+            say("cannot listen: \(error)")
             return onLeave()
         }
         listenFD = fd

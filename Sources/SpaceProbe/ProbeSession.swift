@@ -58,9 +58,10 @@ final class ProbeSession: Identifiable {
     var batteryReports: [[UInt8]] = []
     var otherReports: [UInt8: [UInt8]] = [:]
 
-    /// The report once made, and where it was put down.
+    /// The report once made, where it was put down, and why it was not.
     var report: ProbeReport?
     var reportFile: URL?
+    var reportError: String?
 
     init(device: SpaceMouseDevice) {
         id = device.id

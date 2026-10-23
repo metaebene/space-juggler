@@ -196,7 +196,8 @@ public final class SpaceJugglerConnection {
     }
 
     /// Starts the newest broker known if it is newer than this client's, else this client's own. Not more than once
-    /// in 3 s.
+    /// in 3 s. An app never spawns a command-line broker from the record (ADR-0002; a test's leftover in
+    /// `newest.json` must not become a child of every app): only a client that spawns its own takes one from there.
     private func launch() {
         if let lastLaunch, Date().timeIntervalSince(lastLaunch) < 3 { return }
         lastLaunch = Date()
@@ -216,9 +217,18 @@ public final class SpaceJugglerConnection {
             // Another copy (older, same bundle ID) may be running: this one must start anyway to take over.
             configuration.createsNewApplicationInstance = true
             configuration.promptsUserIfNeeded = false
-            NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, _ in }
+            NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, error in
+                // Launch Services refused (no bundle there, quarantine, a broken signature): the app hears why at
+                // once, instead of a bare "not reached" after five seconds.
+                guard let error else { return }
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        self?.onEvent(.unavailable("Space Juggler could not be started: \(error.localizedDescription)"))
+                    }
+                }
+            }
         case .executable(let path, let arguments):
-            spawnDetached(path: path, arguments: arguments)
+            Self.spawnDetached(path: path, arguments: arguments)
         case .none:
             break
         }

@@ -120,8 +120,13 @@ final class Devices {
         // 3Dconnexion's driver publishes virtual devices of its own (docs/3dxware-package.md): never a SpaceMouse.
         guard !transport.localizedCaseInsensitiveContains("virtual") else { return }
         let descriptor = (property(kIOHIDReportDescriptorKey) as? Data).flatMap { HIDReportDescriptor([UInt8]($0)) }
-        guard let model = SpaceMouseModel.recognise(vendorID: vendor, productID: product,
-                                                    product: property(kIOHIDProductKey) as? String, descriptor: descriptor) else { return }
+        let productName = property(kIOHIDProductKey) as? String
+        guard let model = SpaceMouseModel.recognise(vendorID: vendor, productID: product, product: productName,
+                                                    descriptor: descriptor) else {
+            // A Multi-axis Controller of Logitech or 3Dconnexion that is no SpaceMouse (ADR-0005): said once, for
+            // whoever asks why a device is not listed.
+            return log(String(format: "ignored %04X:%04X %@ (%@)", vendor, product, productName ?? "?", transport))
+        }
         // The identity (`id`) follows once the serial number is known (`register`).
         let info = SpaceMouseDevice(id: "", vendorID: vendor, productID: product, name: model.name, transport: transport,
                                     serialNumber: (property(kIOHIDSerialNumberKey) as? String)?.nonEmpty,
@@ -154,6 +159,9 @@ final class Devices {
         info.id = Self.identity(of: info, slot: info.productID == SpaceMouseModel.universalReceiverProductID ? interface : nil)
         entries[key] = Entry(info: info, model: model, interface: interface)
         log("device appeared: \(model) \(info.id) (\(info.transport))")
+        if info.serialNumber == nil, model.serialFeatureReportID != nil {
+            log("no serial number from feature report \(SpaceMouseReport.serialReportID) of \(info.id): told apart by its port only")
+        }
         if wanted { open(key) }
         onChange()
     }

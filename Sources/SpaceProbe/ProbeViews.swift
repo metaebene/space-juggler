@@ -475,6 +475,9 @@ struct ReportPage: View {
                     Text(verbatim: file.lastPathComponent).font(.callout.monospaced()).textSelection(.enabled)
                     Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file]) }.buttonStyle(.link)
                 }
+            } else if let error = session.reportError {
+                Label { Text("The report could not be saved on your Mac: \(error)") } icon: { Image(systemName: "exclamationmark.triangle") }
+                    .foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 12) {
                 Button { confirmsPosting = true } label: { Label("Post on GitHub…", systemImage: "arrow.up.forward.app") }
@@ -510,6 +513,10 @@ struct ReportPage: View {
         panel.nameFieldStringValue = session.reportFile?.lastPathComponent
             ?? String(format: "SpaceMouse %04X-%04X.json", session.device.vendorID, session.device.productID)
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? report.json.write(to: url)
+        do {
+            try report.json.write(to: url)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
     }
 }

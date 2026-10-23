@@ -6,6 +6,7 @@
 "Space Probe guides you through every key and every movement of your SpaceMouse and writes down what it sends, so that Space Juggler can support it." = "Space Probe führt dich durch jede Taste und jede Bewegung deiner SpaceMouse und schreibt auf, was sie sendet, damit Space Juggler sie unterstützen kann.";
 "Not tested yet" = "Noch nicht getestet";
 "Report created" = "Bericht erstellt";
+"The report could not be saved on your Mac: %@" = "Der Bericht konnte nicht auf deinem Mac gespeichert werden: %@";
 "Step %lld of %lld" = "Schritt %lld von %lld";
 "An older Space Juggler is running; it hands over to the probe's in a moment." = "Ein älterer Space Juggler läuft; er übergibt gleich an den der Probe.";
 "Space Juggler could not be reached" = "Space Juggler ist nicht erreichbar";

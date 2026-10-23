@@ -14,18 +14,29 @@ public enum UnixSocket {
         return address
     }
 
-    /// Binds and listens; removes a stale socket file first (only call while holding the broker lock).
-    public static func listen(at path: String) -> Int32? {
-        guard var address = address(path) else { return nil }
+    public struct Failure: Error, CustomStringConvertible {
+        public let description: String
+    }
+
+    /// Binds and listens; removes a stale socket file first (only call while holding the broker lock). Throws with
+    /// what failed and why.
+    public static func listen(at path: String) throws -> Int32 {
+        guard var address = address(path) else { throw Failure(description: "path too long for a socket: \(path)") }
         unlink(path)
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { return nil }
+        guard fd >= 0 else { throw Failure(description: "socket: \(String(cString: strerror(errno)))") }
         let bound = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
         }
-        guard bound == 0, Darwin.listen(fd, 16) == 0 else {
+        guard bound == 0 else {
+            let reason = String(cString: strerror(errno))
             close(fd)
-            return nil
+            throw Failure(description: "bind \(path): \(reason)")
+        }
+        guard Darwin.listen(fd, 16) == 0 else {
+            let reason = String(cString: strerror(errno))
+            close(fd)
+            throw Failure(description: "listen \(path): \(reason)")
         }
         chmod(path, 0o600)
         return fd

@@ -108,8 +108,16 @@ final class Probe {
         let name = String(format: "%@ %04X-%04X %@.json", formatter.string(from: report.date), session.device.vendorID,
                           session.device.productID, session.device.name.replacingOccurrences(of: "/", with: "-"))
         let file = Self.reportsFolder.appendingPathComponent(name)
-        try? FileManager.default.createDirectory(at: Self.reportsFolder, withIntermediateDirectories: true)
-        session.reportFile = (try? report.json.write(to: file)) == nil ? nil : file
+        do {
+            try FileManager.default.createDirectory(at: Self.reportsFolder, withIntermediateDirectories: true)
+            try report.json.write(to: file)
+            session.reportFile = file
+            session.reportError = nil
+        } catch {
+            // The report is still there to export or post; the page says it was not put down.
+            session.reportFile = nil
+            session.reportError = error.localizedDescription
+        }
         session.step = .report
     }
 
