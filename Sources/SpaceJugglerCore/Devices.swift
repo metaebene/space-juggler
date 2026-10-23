@@ -245,21 +245,41 @@ final class Devices {
         let bytes = (IORegistryEntryCreateCFProperty(service, kIOHIDReportDescriptorKey as CFString, kCFAllocatorDefault, 0)?
             .takeRetainedValue() as? Data).map { [UInt8]($0) } ?? []
         let features = HIDReportDescriptor(bytes)?.reports.filter { $0.kind == .feature } ?? []
-        let open = entry.device.map { UncheckedSendable($0) }
-        let usb = Self.usbPath(of: entry.info, interface: entry.interface)
-        DispatchQueue.global(qos: .userInitiated).async {
-            var via: String?
-            let reports = features.map { report -> DeviceDescription.FeatureReport in
-                guard let read = Self.readFeature(key, reportID: report.id, length: report.length, device: open?.value, usb: usb) else {
-                    return .init(id: Int(report.id), error: "GET failed")
-                }
-                via = via ?? read.via
-                return .init(id: Int(report.id), bytes: read.bytes)
-            }
-            let description = DeviceDescription(device: id, properties: properties, reportDescriptor: bytes,
-                                                featureReports: reports, featureReportsVia: via)
-            Task { @MainActor in completion(description) }
+        let finish: @Sendable ([DeviceDescription.FeatureReport], String?) -> DeviceDescription = {
+            DeviceDescription(device: id, properties: properties, reportDescriptor: bytes, featureReports: $0, featureReportsVia: $1)
         }
+        if let open = entry.device {
+            // Our open device object stays on the main queue, its dispatch queue and where close() runs; one GET per
+            // turn of the queue, so input and other clients get between them. We hold it: no control-pipe fallback.
+            Task { @MainActor in
+                var via: String?
+                var reports: [DeviceDescription.FeatureReport] = []
+                for report in features {
+                    reports.append(Self.featureReport(key, report, device: open, usb: nil, via: &via))
+                    await Task.yield()
+                }
+                completion(finish(reports, via))
+            }
+        } else {
+            // Nothing of ours is open: device objects of our own, off the main queue (a round trip per report).
+            let usb = Self.usbPath(of: entry.info, interface: entry.interface)
+            DispatchQueue.global(qos: .userInitiated).async {
+                var via: String?
+                let reports = features.map { Self.featureReport(key, $0, device: nil, usb: usb, via: &via) }
+                let description = finish(reports, via)
+                Task { @MainActor in completion(description) }
+            }
+        }
+    }
+
+    /// One feature report for a description; `via` keeps the first way that worked.
+    private nonisolated static func featureReport(_ key: UInt64, _ report: HIDReportDescriptor.Report, device: IOHIDDevice?,
+                                                  usb: USBPath?, via: inout String?) -> DeviceDescription.FeatureReport {
+        guard let read = readFeature(key, reportID: report.id, length: report.length, device: device, usb: usb) else {
+            return .init(id: Int(report.id), error: "GET failed")
+        }
+        via = via ?? read.via
+        return .init(id: Int(report.id), bytes: read.bytes)
     }
 
     /// The properties of a HID service that say what the device is, and those of the USB interface and device above
@@ -400,12 +420,6 @@ final class Devices {
         var id: UInt64 = 0
         return IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(device), &id) == KERN_SUCCESS ? id : nil
     }
-}
-
-/// An IOHIDDevice handed to the queue that reads feature reports while the main queue keeps it open.
-private struct UncheckedSendable<Value>: @unchecked Sendable {
-    let value: Value
-    init(_ value: Value) { self.value = value }
 }
 
 /// Report buffer of one open device; decodes on the main queue.
