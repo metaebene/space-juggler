@@ -80,8 +80,6 @@ struct ProbeReport: Codable {
         var noSerialNumberPrinted: Bool
     }
 
-    static func hex(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined(separator: " ") }
-
     var json: Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]

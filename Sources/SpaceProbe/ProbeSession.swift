@@ -24,9 +24,9 @@ final class ProbeSession: Identifiable {
     }
 
     let id: String
-    var device: SpaceMouseDevice
+    var device: SpaceMouseDevice { didSet { recognise() } }
     var description: DeviceDescription?
-    var descriptor: HIDReportDescriptor?
+    var descriptor: HIDReportDescriptor? { didSet { recognise() } }
     var step = Step.start
 
     // Live input, always
@@ -65,6 +65,7 @@ final class ProbeSession: Identifiable {
     init(device: SpaceMouseDevice) {
         id = device.id
         self.device = device
+        recognise()
     }
 
     // MARK: - What the descriptor says
@@ -75,10 +76,17 @@ final class ProbeSession: Identifiable {
     var hasLED: Bool { descriptor?.hasLED ?? device.hasLED ?? true }
     /// The two side buttons, drawn on the SpaceMouse.
     var hasSideButtons: Bool { device.buttons.map { $0.contains(.left) } ?? (declaredBits == [0, 1]) }
+    /// The side buttons as held now, for the drawing; nil for a model without them.
+    var sideButtons: (left: Bool, right: Bool)? { hasSideButtons ? (heldBits.contains(0), heldBits.contains(1)) : nil }
+    /// Vendor and product ID and the transport, as shown with the device's name.
+    var idsAndTransport: String { String(format: "%04X:%04X · %@", device.vendorID, device.productID, device.transport) }
 
-    private var model: SpaceMouseModel? {
-        SpaceMouseModel.recognise(vendorID: device.vendorID, productID: device.productID, product: device.name,
-                                  descriptor: descriptor)
+    /// The model as Space Juggler would recognise it from the device and its descriptor (ADR-0005).
+    private(set) var model: SpaceMouseModel?
+
+    private func recognise() {
+        model = SpaceMouseModel.recognise(vendorID: device.vendorID, productID: device.productID, product: device.name,
+                                          descriptor: descriptor)
     }
 
     /// What the catalog calls the key at `bit`, if the model is in it.
@@ -93,6 +101,10 @@ final class ProbeSession: Identifiable {
     }
 
     var asked: SpaceMouseAxes.Direction? { SpaceMouseAxes.Direction.allCases.first { results[$0] == nil } }
+    /// Directions that moved another axis than on the models known so far.
+    var unexpectedDirections: [SpaceMouseAxes.Direction] {
+        SpaceMouseAxes.Direction.allCases.filter { results[$0]?.asExpected == false }
+    }
 
     // MARK: - Done?
 
@@ -185,9 +197,9 @@ final class ProbeSession: Identifiable {
                 vendorID: String(format: "%04X", device.vendorID), productID: String(format: "%04X", device.productID),
                 transport: device.transport, identity: device.id, serialNumberRead: device.serialNumber,
                 properties: description?.properties ?? [:],
-                reportDescriptor: ProbeReport.hex(description?.reportDescriptor ?? []),
+                reportDescriptor: (description?.reportDescriptor ?? []).hex(),
                 featureReports: Dictionary(uniqueKeysWithValues: (description?.featureReports ?? []).map { feature in
-                    (String(format: "%02X", feature.id), feature.bytes.map(ProbeReport.hex) ?? (feature.error ?? "?"))
+                    (String(format: "%02X", feature.id), feature.bytes?.hex() ?? feature.error ?? "?")
                 }),
                 featureReportsVia: description?.featureReportsVia,
                 reports: parsed?.reports.map { String(format: "%@ %02X: %d bytes", $0.kind.rawValue, $0.id, $0.length) } ?? [],
@@ -207,28 +219,13 @@ final class ProbeSession: Identifiable {
             led: hasLED ? .init(lit: ledLit, wentOut: ledWentOut) : nil,
             label: .init(name: printedName, serialNumber: noSerialPrinted ? "" : printedSerial,
                          noSerialNumberPrinted: noSerialPrinted),
-            batteryReports: batteryReports.map(ProbeReport.hex),
-            otherInputReports: Dictionary(uniqueKeysWithValues: otherReports.map { (String(format: "%02X", $0.key), ProbeReport.hex($0.value)) }),
+            batteryReports: batteryReports.map { $0.hex() },
+            otherInputReports: Dictionary(uniqueKeysWithValues: otherReports.map { (String(format: "%02X", $0.key), $0.value.hex()) }),
             notes: notes)
     }
 }
 
 extension SpaceMouseAxes.Direction {
-    /// What to do with the cap, in the user's language.
-    var localizedInstruction: String {
-        switch self {
-        case .slideRight: String(localized: "Slide the cap to the right")
-        case .slideLeft: String(localized: "Slide the cap to the left")
-        case .slideForward: String(localized: "Slide the cap forward, away from you")
-        case .slideBack: String(localized: "Slide the cap back, towards you")
-        case .push: String(localized: "Push the cap down")
-        case .pull: String(localized: "Pull the cap up")
-        case .tiltForward: String(localized: "Tilt the cap forward")
-        case .tiltBack: String(localized: "Tilt the cap back")
-        case .tiltRight: String(localized: "Tilt the cap to the right")
-        case .tiltLeft: String(localized: "Tilt the cap to the left")
-        case .twistRight: String(localized: "Twist the cap clockwise")
-        case .twistLeft: String(localized: "Twist the cap counter-clockwise")
-        }
-    }
+    /// `instruction` in the user's language (`Localizable.strings` keys the English text).
+    var localizedInstruction: String { Bundle.main.localizedString(forKey: instruction, value: instruction, table: nil) }
 }

@@ -42,9 +42,7 @@ struct DeviceRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(verbatim: session.device.name).font(.headline)
-            Text(verbatim: String(format: "%04X:%04X · %@", session.device.vendorID, session.device.productID,
-                                  session.device.transport))
-                .font(.caption).foregroundStyle(.secondary)
+            Text(verbatim: session.idsAndTransport).font(.caption).foregroundStyle(.secondary)
             Group {
                 switch session.step {
                 case .start: Text("Not tested yet")
@@ -192,9 +190,7 @@ struct StartPage: View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(verbatim: session.device.name).font(.largeTitle.bold())
-                Text(verbatim: String(format: "%04X:%04X · %@", session.device.vendorID, session.device.productID,
-                                      session.device.transport))
-                    .foregroundStyle(.secondary)
+                Text(verbatim: session.idsAndTransport).foregroundStyle(.secondary)
                 knowledge.font(.title3)
             }
             Text("The test takes about three minutes. You will:").font(.headline)
@@ -277,8 +273,7 @@ struct KeysPage: View {
         VStack(alignment: .leading, spacing: 16) {
             PageTitle(title: "Keys", text: "Press each key of your SpaceMouse once. For every key, type what is printed on it; leave the field empty if nothing is.")
             HStack(alignment: .top, spacing: 28) {
-                SpaceMouseTopView(axes: session.axes, fullScale: session.fullScale,
-                                  sideButtons: session.hasSideButtons ? (session.heldBits.contains(0), session.heldBits.contains(1)) : nil)
+                SpaceMouseTopView(axes: session.axes, fullScale: session.fullScale, sideButtons: session.sideButtons)
                     .frame(width: 180, height: 180)
                 VStack(alignment: .leading, spacing: 10) {
                     if session.keys.isEmpty {
@@ -317,8 +312,7 @@ struct CapPage: View {
         VStack(alignment: .leading, spacing: 16) {
             PageTitle(title: "Cap", text: "Move the cap as asked, as far as it goes, then let go. The next direction follows by itself.")
             HStack(alignment: .center, spacing: 28) {
-                SpaceMouseTopView(axes: session.axes, fullScale: session.fullScale,
-                                  sideButtons: session.hasSideButtons ? (session.heldBits.contains(0), session.heldBits.contains(1)) : nil,
+                SpaceMouseTopView(axes: session.axes, fullScale: session.fullScale, sideButtons: session.sideButtons,
                                   asked: session.asked, done: Set(session.results.keys))
                     .frame(width: 240, height: 240)
                 VStack(alignment: .leading, spacing: 12) {
@@ -332,8 +326,7 @@ struct CapPage: View {
                     Text("\(session.results.count) of 12").font(.headline)
                 }
             }
-            let odd = SpaceMouseAxes.Direction.allCases.filter { session.results[$0]?.asExpected == false }
-            if !odd.isEmpty {
+            if !session.unexpectedDirections.isEmpty {
                 Text("Some directions moved another axis than on the models known so far. That is fine if you moved the cap as asked; it goes into the report.")
                     .foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
@@ -405,10 +398,7 @@ struct SummaryPage: View {
             Form {
                 Section {
                     row("Model") { Text(verbatim: session.device.name) }
-                    row("IDs") {
-                        Text(verbatim: String(format: "%04X:%04X, %@", session.device.vendorID, session.device.productID,
-                                              session.device.transport))
-                    }
+                    row("IDs") { Text(verbatim: session.idsAndTransport) }
                 } header: { header("Device", step: .description) }
                 Section {
                     if session.keys.isEmpty { Text("none") }
@@ -419,7 +409,7 @@ struct SummaryPage: View {
                     }
                 } header: { header("Keys", step: .keys) }
                 Section {
-                    let odd = SpaceMouseAxes.Direction.allCases.filter { session.results[$0]?.asExpected == false }
+                    let odd = session.unexpectedDirections
                     if odd.isEmpty {
                         Text("All twelve directions as expected.")
                     } else {
