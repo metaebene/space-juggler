@@ -41,6 +41,27 @@ struct ConnectionTests {
         #expect(received == messages)
     }
 
+    @Test func aPeerWhoseLineNeverEndsIsDropped() async throws {
+        let (ours, theirs) = pair()
+        defer { close(theirs) }
+        let connection = LineConnection<BrokerMessage, ClientMessage>(fd: ours)
+        var closed = false
+        connection.onClose = { closed = true }
+        connection.start()
+        // Bytes without a newline, more than lineLimit, in pieces the socket takes (ADR-0009).
+        _ = fcntl(theirs, F_SETFL, O_NONBLOCK)
+        let piece = [UInt8](repeating: UInt8(ascii: "x"), count: 4096)
+        var sent = 0
+        for _ in 0..<2000 where !closed && sent <= LineConnection<BrokerMessage, ClientMessage>.lineLimit + piece.count {
+            let count = piece.withUnsafeBytes { write(theirs, $0.baseAddress, $0.count) }
+            if count > 0 { sent += count }
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        for _ in 0..<100 where !closed { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(closed)
+        #expect(!connection.stalled, "dropped for what it sent, not for what it did not read")
+    }
+
     @Test func droppingAConnectionClosesTheSocket() async throws {
         let (ours, theirs) = pair()
         defer { close(theirs) }
