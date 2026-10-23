@@ -68,6 +68,8 @@ final class Devices {
             MainActor.assumeIsolated { Unmanaged<Devices>.fromOpaque(context!).takeUnretainedValue().vanished(device) }
         }, context)
         IOHIDManagerSetDispatchQueue(manager, .main)
+        // The manager lives until its cancel handler ran (`stop`): its callbacks may still be on the queue.
+        IOHIDManagerSetCancelHandler(manager) { withExtendedLifetime(manager) {} }
         IOHIDManagerActivate(manager)
         self.manager = manager
     }
@@ -358,7 +360,10 @@ final class Devices {
         IOHIDDeviceSetDispatchQueue(device, .main)
         let result = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeSeizeDevice))
         guard result == kIOReturnSuccess else {
+            // A queue set but never activated: cancel, then activate, in that order (IOHIDDevice.h), or the cancel
+            // handler never runs and keeps device and buffer for ever, once per failed attempt.
             cancel(device, keeping: reports)
+            IOHIDDeviceActivate(device)
             let busy = result == kIOReturnExclusiveAccess
             let state = busy ? "busy" : String(format: "open failed (0x%08X)", UInt32(bitPattern: result))
             entries[key]?.info.state = state
