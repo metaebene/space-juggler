@@ -36,6 +36,9 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
 - Erkannt wird jeder Multi-axis Controller (1/8 in `DeviceUsagePairs`) von 046D/256F; ein Modell, das nicht `checked`
   ist, gilt nie ohne diesen Zusatz als unterstützt (ADR-0005). An Geräte wird nur die LED geschrieben, Feature-Reports
   nur gelesen.
+- Achsen eines ergriffenen Geräts gehen als Auslenkung von der Ruhelage der Kappe an den Halter, nur über `CapRest`:
+  bleibt sie 1,5 s fast gleich und nahe der Mitte, ist das ihre Ruhelage, lauter Nullen setzen sie zurück; Rohes
+  (`--raw`, Space Probe) bleibt roh, der Treiber-Weg unverändert (ADR-0010).
 - Nie einen anderen Prozess beenden, um an ein Gerät zu kommen; den 3Dconnexion-Helper nie.
 - Öffentlich: Findings nur als beobachtetes Verhalten, nichts aus den vertraulichen Headern des Herstellers.
 

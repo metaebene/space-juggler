@@ -52,6 +52,23 @@ struct ReportsTests {
         #expect(seen.axes == [SpaceMouseAxes(x: 1, y: 2, z: 3, rx: 4, ry: 5, rz: 6)])
     }
 
+    @Test func aCapRestingOffItsCentreIsPassedOnAsAtRest() {
+        // ADR-0010: what goes on is the deflection from where the cap rests.
+        let seen = Seen()
+        var now = 0.0
+        var rests: [SpaceMouseAxes] = []
+        let reports = Reports(size: 64, model: .spaceNavigator, onReport: { _ in }, onAxes: { seen.axes.append($0) },
+                              onButtons: { _ in }, onBattery: { _, _ in }, onRest: { rests.append($0) }, clock: { now })
+        for _ in 0..<120 {
+            ingest(reports, [1, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00])        // y 32
+            ingest(reports, [2, 0x00, 0x00, 0x00, 0x00, 0xE2, 0xFF])        // rz -30
+            now += 0.016
+        }
+        #expect(seen.axes.first == SpaceMouseAxes(y: 32, rz: -30))
+        #expect(seen.axes.last == .zero)
+        #expect(rests == [SpaceMouseAxes(y: 32, rz: -30)])
+    }
+
     @Test func batteryAndUnknownReports() {
         let (reports, seen) = reports(.spaceMouseWireless)
         ingest(reports, [0x17, 80, 1])

@@ -358,7 +358,8 @@ final class Devices {
                                   guard let self, self.isEnabled(id) else { return }
                                   self.onButtons(id, held)
                               },
-                              onBattery: { [weak self] percent, charging in self?.battery(key, percent, charging) })
+                              onBattery: { [weak self] percent, charging in self?.battery(key, percent, charging) },
+                              onRest: { [weak self] rest in self?.log("\(id): the cap rests at \(rest)") })
         IOHIDDeviceRegisterInputReportCallback(device, reports.buffer, size, { context, result, _, _, _, report, length in
             guard result == kIOReturnSuccess, let context else { return }
             MainActor.assumeIsolated {
@@ -444,18 +445,26 @@ final class Reports {
     private let onAxes: (SpaceMouseAxes) -> Void
     private let onButtons: (SpaceMouseButtons) -> Void
     private let onBattery: (Int, Bool) -> Void
+    private let onRest: (SpaceMouseAxes) -> Void
+    private let clock: () -> TimeInterval
     private var pending = SpaceMouseAxes.zero
+    /// Where this cap rests (ADR-0010): what goes on is the deflection from it.
+    private var rest = CapRest()
     private var buttons: SpaceMouseButtons = []
 
     init(size: Int, model: SpaceMouseModel, onReport: @escaping (UnsafeBufferPointer<UInt8>) -> Void,
          onAxes: @escaping (SpaceMouseAxes) -> Void,
-         onButtons: @escaping (SpaceMouseButtons) -> Void, onBattery: @escaping (Int, Bool) -> Void) {
+         onButtons: @escaping (SpaceMouseButtons) -> Void, onBattery: @escaping (Int, Bool) -> Void,
+         onRest: @escaping (SpaceMouseAxes) -> Void = { _ in },
+         clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
         buffer = .allocate(capacity: size)
         self.model = model
         self.onReport = onReport
         self.onAxes = onAxes
         self.onButtons = onButtons
         self.onBattery = onBattery
+        self.onRest = onRest
+        self.clock = clock
     }
 
     deinit { buffer.deallocate() }
@@ -470,7 +479,10 @@ final class Reports {
         } else if let battery = SpaceMouseReport.battery(bytes) {
             onBattery(battery.percent, battery.charging)
         } else if SpaceMouseReport.take(bytes, into: &pending), SpaceMouseReport.completes(bytes) {
-            onAxes(pending)
+            let before = rest.rest
+            let axes = rest.corrected(pending, at: clock())
+            if rest.rest != before { onRest(rest.rest) }
+            onAxes(axes)
         }
     }
 }
