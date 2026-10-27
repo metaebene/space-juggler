@@ -39,6 +39,9 @@ final class Devices {
     /// Appeared, their serial number still being read off the main queue; one gone again before that finished is
     /// never registered.
     private var pending: Set<UInt64> = []
+    /// The manager's device object of every key, listed or pending: once a device is gone, its service no longer
+    /// gives a registry ID, so `vanished` finds it by this object.
+    private var managed: [UInt64: IOHIDDevice] = [:]
     private var wanted = false
     /// 3Dconnexion's helper holds the devices; they are reported as "driver" (ADR-0004).
     var driverHolds = false
@@ -127,6 +130,7 @@ final class Devices {
             // whoever asks why a device is not listed.
             return log(String(format: "ignored %04X:%04X %@ (%@)", vendor, product, productName ?? "?", transport))
         }
+        self.managed[key] = managed
         // The identity (`id`) follows once the serial number is known (`register`).
         let info = SpaceMouseDevice(id: "", vendorID: vendor, productID: product, name: model.name, transport: transport,
                                     serialNumber: (property(kIOHIDSerialNumberKey) as? String)?.nonEmpty,
@@ -327,7 +331,8 @@ final class Devices {
     // MARK: - Opening and closing
 
     private func vanished(_ managed: IOHIDDevice) {
-        guard let key = Self.registryID(of: managed) else { return }
+        guard let key = self.managed.first(where: { $0.value === managed })?.key ?? Self.registryID(of: managed) else { return }
+        self.managed[key] = nil
         pending.remove(key)
         guard let entry = entries[key] else { return }
         close(key)
