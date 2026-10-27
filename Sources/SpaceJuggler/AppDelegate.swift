@@ -2,12 +2,14 @@ import AppKit
 import SpaceJugglerCore
 import SpaceJugglerProtocol
 
-/// Wins the election or leaves, runs the broker and shows its menu bar item (ADR-0001, ADR-0002).
+/// Wins the election or leaves, runs the broker and shows its menu bar item if a developer turned it on
+/// (ADR-0001, ADR-0002, ADR-0011).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let place = BrokerPlace.standard
     private var broker: Broker?
     private var statusItem: NSStatusItem?
+    private var menuBarSetting: NSKeyValueObservation?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         switch Election.run(place: place, version: SpaceJuggler.version, log: { [place] in place.appendLog($0) }) {
@@ -16,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             broker.onChange = { [weak self] in self?.updateIcon() }
             broker.onLeave = { NSApp.terminate(nil) }
             self.broker = broker
-            showStatusItem()
+            followMenuBarSetting()
             broker.start(lockFile: lockFile)
             place.appendLog("permission to listen (Input Monitoring): \(Self.listenAccess) — \(Bundle.main.bundlePath)")
         case .stays(let running):
@@ -38,6 +40,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     // MARK: - Menu bar item
+
+    /// Only for developers (ADR-0011): `defaults write me.metaebene.SpaceJuggler showsMenuBarItem -bool YES`,
+    /// followed while running, also when changed from outside.
+    private func followMenuBarSetting() {
+        menuBarSetting = UserDefaults.standard.observe(\.showsMenuBarItem, options: [.initial]) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.updateStatusItem() }
+        }
+    }
+
+    private func updateStatusItem() {
+        let shows = UserDefaults.standard.showsMenuBarItem
+        guard shows != (statusItem != nil) else { return }
+        if shows {
+            showStatusItem()
+        } else if let statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            self.statusItem = nil
+        }
+        place.appendLog("menu bar item \(shows ? "shown" : "hidden") (showsMenuBarItem)")
+    }
 
     private func showStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -116,4 +138,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showLog() {
         NSWorkspace.shared.open(place.log)
     }
+}
+
+extension UserDefaults {
+    /// Observable from outside the process, as `defaults write` changes it (ADR-0011).
+    @objc dynamic fileprivate var showsMenuBarItem: Bool { bool(forKey: "showsMenuBarItem") }
 }

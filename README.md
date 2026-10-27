@@ -82,6 +82,10 @@ Embed `Space Juggler.app` as `Contents/Helpers/Space Juggler.app`: `Scripts/buil
 directory of your own, since SwiftPM's checkout of the package is read-only). The client
 starts it through Launch Services when nobody answers.
 
+Space Juggler shows nothing to users. Its menu bar item (devices, who holds them, the log) is for developers and is
+turned on, also while it runs, with `defaults write me.metaebene.SpaceJuggler showsMenuBarItem -bool YES`
+(off again: `-bool NO`).
+
 ## Parts
 
 - `SpaceMouseKit` — models (IDs, buttons per model, LED, battery, serial number, how each is known), input reports,

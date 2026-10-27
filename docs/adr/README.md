@@ -12,6 +12,7 @@
 | [0008](0008-the-juggler-icon-is-the-menu-bar-symbol.md) | Space Juggler's icon is its menu bar symbol, as Icon Composer layers | accepted |
 | [0009](0009-the-user-is-the-trust-boundary.md) | The user is the trust boundary; a peer is a stranger inside it | proposed |
 | [0010](0010-a-cap-that-stays-off-its-centre-rests-there.md) | A cap that stays off its centre rests there: the holder gets the deflection from it | accepted |
+| [0011](0011-the-menu-bar-item-is-for-developers.md) | Space Juggler's menu bar item is for developers and off by default | accepted |
 
 Template: Context, Decision, Consequences, Rules, Enforced and verified by (as in the client repositories). A change
 against an ADR's Rules needs a superseding ADR.

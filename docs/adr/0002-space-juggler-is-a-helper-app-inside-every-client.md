@@ -1,6 +1,6 @@
 # ADR-0002: Space Juggler is a helper app inside every client, started through Launch Services, with a menu bar item
 
-- Status: accepted (Tim, 2026-10-14); "Quit" in the menu still open
+- Status: accepted (Tim, 2026-10-14); "Quit" in the menu still open; the menu bar item is off by default (ADR-0011)
 - Date: 2026-10-14
 - Related: ADR-0001
 
@@ -27,7 +27,8 @@
   never as a child process, so it has one identity of its own whichever client starts it.
 - It runs while a client is connected and leaves a while after the last one is gone (spike: 10 s).
 - Its menu bar item shows the SpaceMouse symbol; the menu lists the devices (on/off, connection, battery, ADR-0003), who
-  holds and who waits, the driver state (ADR-0004), and with ⌥ diagnostics. The item can be hidden.
+  holds and who waits, the driver state (ADR-0004), and with ⌥ diagnostics. The item can be hidden; since ADR-0011
+  it is shown only when a developer turns it on.
 - The name stands alone, without explanatory additions (Tim, 2026-10-14).
 
 ## Consequences
