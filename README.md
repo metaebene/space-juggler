@@ -57,7 +57,7 @@ English and German), or build it with `Scripts/build-space-probe.sh`. It never c
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/metaebene/space-juggler.git", from: "0.2.0")
+.package(url: "https://github.com/metaebene/space-juggler.git", from: "1.0.0")
 // target dependency
 .product(name: "SpaceJugglerClient", package: "space-juggler")
 ```
