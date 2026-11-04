@@ -1,6 +1,6 @@
 # ADR-0004: While 3Dconnexion's helper runs, Space Juggler is the driver's one manual client
 
-- Status: accepted (Tim, 2026-10-14); checked at the device with all four apps (run 6)
+- Status: accepted (Tim, 2026-10-14); checked at the device with all four apps (run 6); a failed registration tried again by ADR-0012
 - Date: 2026-10-14
 - Related: ADR-0001; `docs/3dxware-package.md`; stagehand `docs/spacemouse-findings.md` ("Routing")
 

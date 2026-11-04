@@ -37,6 +37,10 @@ final class DriverClient {
     private var wanted = false
     private var active = false
     private var starting = false
+    /// Counts scheduled registrations: one that is replaced or stopped finds another number and does nothing.
+    private var scheduled = 0
+    /// After a failed registration: when to try again and what to log (ADR-0012).
+    private var retry = DriverRetry()
 
     var isRegistered: Bool { clientID != 0 }
 
@@ -49,21 +53,36 @@ final class DriverClient {
 
     func start() {
         guard api == nil, !starting else { return }
+        schedule(after: Self.registrationDelay)
+    }
+
+    /// Registers after `delay`, in place of a registration scheduled before.
+    private func schedule(after delay: TimeInterval) {
         starting = true
-        MainActor.after(Self.registrationDelay) { [weak self] in
-            guard let self, starting else { return }
+        scheduled += 1
+        let number = scheduled
+        MainActor.after(delay) { [weak self] in
+            guard let self, starting, number == scheduled else { return }
             starting = false
             register()
         }
     }
 
+    /// A registration failed: Space Juggler stays in driver mode without a client of the driver, so nothing reaches
+    /// anyone; it tries again, ever less often, and logs only some of the failures (ADR-0012).
+    private func failed(_ reason: String) {
+        let next = retry.failed(reason, at: Date())
+        if let line = next.log { log(line) }
+        schedule(after: next.delay)
+    }
+
     private func register() {
-        guard Self.current == nil else { return log("driver: another client in this process") }
+        guard Self.current == nil else { return failed("another client in this process") }
         let api: ConnexionAPI
         do {
             api = try ConnexionAPI.load(path: Self.frameworkPath)
         } catch {
-            return log("driver: \(error)")
+            return failed("\(error)")
         }
         self.api = api
         Self.current = self
@@ -71,8 +90,9 @@ final class DriverClient {
         guard handlers == 0 else {
             self.api = nil
             Self.current = nil
-            // -36 seen when the helper was not running (Space Shuttle, release 0.1).
-            return log("driver: SetConnexionHandlers returned \(handlers)")
+            // -36: no helper to talk to – not running (Space Shuttle, release 0.1), or listed by NSWorkspace but not
+            // answering yet or any more (four times on 2026-11-04, shortly after a login).
+            return failed("SetConnexionHandlers returned \(handlers)")
         }
         // With a name: registered without one from an app bundle, helper 1.4.4 crashed at once (2026-10-14, the
         // `insertObject: nil` seen with 1.4.2 too); the command-line probe always passed one and never crashed it.
@@ -83,16 +103,19 @@ final class DriverClient {
             api.cleanup()
             self.api = nil
             Self.current = nil
-            return log("driver: RegisterConnexionClient returned no client ID")
+            return failed("RegisterConnexionClient returned no client ID")
         }
         api.setButtonMask(clientID, Self.maskAllButtons)
-        log("driver: registered as manual client \(clientID)")
+        let failures = retry.succeeded()
+        log("driver: registered as manual client \(clientID)\(failures == 0 ? "" : " after \(failures) failed attempts")")
         updateActivation()
     }
 
-    /// Takes the driver's data (true) or leaves it to the frontmost app's own client (false).
+    /// Takes the driver's data (true) or leaves it to the frontmost app's own client (false). An app that wants it
+    /// while the registration fails brings the next attempt forward (`DriverRetry.soonest`).
     func want(_ wanted: Bool) {
         self.wanted = wanted
+        if wanted, !isRegistered, retry.mayTryEarly(at: Date()) { schedule(after: 0) }
         updateActivation()
     }
 
@@ -112,6 +135,8 @@ final class DriverClient {
 
     func stop() {
         starting = false
+        scheduled += 1
+        retry = DriverRetry()
         guard let api else { return }
         if clientID != 0 {
             if active { control(Self.controlDeactivate) }
