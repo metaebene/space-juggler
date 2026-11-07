@@ -5,7 +5,7 @@ import Foundation
 public enum SpaceJuggler {
     /// Version of the broker built from this package. A running broker hands over only to a higher one; a client
     /// that meets a lower one starts its own. Raise it with every release of the package.
-    public static let version = 14
+    public static let version = 15
     /// Raised with every change of the messages that an older peer cannot read.
     public static let protocolVersion = 2
     public static let bundleIdentifier = "me.metaebene.SpaceJuggler"
@@ -221,6 +221,10 @@ public enum BrokerMessage: Codable, Sendable, Equatable {
     /// Answer to `describe`. Protocol 2.
     case description(DeviceDescription)
     case status(BrokerStatus)
+    /// The apps that have a client of their own: a client running in the app's process whose claim names the app
+    /// (Kugelblitz; Space Shuttle in REAPER). After the welcome and on every change, to every client (ADR-0014). An
+    /// older client drops it unread; an older broker never sends it.
+    case appsWithOwnClient(apps: [String])
     /// Answer to `takeOver`: the broker leaves (true) or stays because it is as new or newer (false).
     case handingOver(Bool)
 }
@@ -249,15 +253,18 @@ public struct BrokerStatus: Codable, Sendable, Equatable {
     public var clients: [Client]
     /// Space Juggler goes through 3Dconnexion's driver, whose helper holds the devices (ADR-0004); nil = no.
     public var driver: Bool?
+    /// The apps that have a client of their own (ADR-0014); nil from a broker before version 15.
+    public var appsWithOwnClient: [String]?
 
     public init(version: Int, processID: Int32, frontmostApp: String?, devices: [SpaceMouseDevice], clients: [Client],
-                driver: Bool? = nil) {
+                driver: Bool? = nil, appsWithOwnClient: [String]? = nil) {
         self.version = version
         self.processID = processID
         self.frontmostApp = frontmostApp
         self.devices = devices
         self.clients = clients
         self.driver = driver
+        self.appsWithOwnClient = appsWithOwnClient
     }
 }
 

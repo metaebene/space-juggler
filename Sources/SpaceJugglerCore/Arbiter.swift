@@ -54,4 +54,13 @@ public enum Arbiter {
         }
         return Decision(holder: winner?.id, throughFront: false)
     }
+
+    /// The apps that have a client of their own: a client whose process is the app (`bundleID` of its process ID) and
+    /// whose claim names that app (ADR-0014). The same client that `decide` lets beat one steering the app from outside,
+    /// told before the app comes to the front. Sorted, each once.
+    public static func appsWithOwnClient(_ claimants: [Claimant], bundleID: (Int32) -> String?) -> [String] {
+        Set(claimants.compactMap { claimant in
+            bundleID(claimant.processID).flatMap { claimant.claim.apps.contains($0) ? $0 : nil }
+        }).sorted()
+    }
 }

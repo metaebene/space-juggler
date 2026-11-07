@@ -15,6 +15,7 @@
 | [0011](0011-the-menu-bar-item-is-for-developers.md) | Space Juggler's menu bar item is for developers and off by default | accepted |
 | [0012](0012-a-failed-driver-registration-is-tried-again.md) | A failed registration with 3Dconnexion's driver is tried again, ever less often and logged ever more rarely | accepted |
 | [0013](0013-a-driver-that-passes-nothing-on-is-told-to-every-client.md) | A driver that passes nothing on is told to every client, with why | proposed |
+| [0014](0014-every-client-hears-which-apps-have-a-client-of-their-own.md) | Every client hears which apps have a client of their own | proposed |
 
 Template: Context, Decision, Consequences, Rules, Enforced and verified by (as in the client repositories). A change
 against an ADR's Rules needs a superseding ADR.

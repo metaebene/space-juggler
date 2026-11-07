@@ -123,6 +123,9 @@ MainActor.assumeIsolated {
             case .unavailable(let reason): say("[\(name)] \(reason)")
             }
         }
+        client.onAppsWithOwnClient = { apps in
+            if !quiet { say("[\(name)] own clients: " + (apps.isEmpty ? "none" : apps.sorted().joined(separator: ", "))) }
+        }
         client.onReport = { bytes, device in
             say("[\(name)] \(device) report " + bytes.hex())
         }

@@ -38,6 +38,22 @@ struct ArbiterTests {
         #expect(Arbiter.decide([glider, kugelblitz], frontmostApp: "com.apple.Maps", frontmostProcess: 600).holder == 1)
     }
 
+    /// ADR-0014: an app has a client of its own when the client runs in the app's process and claims it; one steering
+    /// apps from outside (Space Glider) or a process without a bundle (a CLI client) makes none.
+    @Test func appsWithOwnClientAreTheProcessesThatClaimThemselves() {
+        let names: [Int32: String] = [500: "me.metaebene.Kugelblitz", 600: "com.cockos.reaper", 700: "me.metaebene.SpaceGlider",
+                                      800: "me.metaebene.Stagehand"]
+        let glider = claimant(1, pid: 700, apps: ["me.metaebene.Kugelblitz", "com.apple.Maps"])
+        let kugelblitz = claimant(2, pid: 500, apps: ["me.metaebene.Kugelblitz"])
+        let shuttle = claimant(3, pid: 600, apps: ["com.cockos.reaper"])
+        let stagehand = claimant(4, pid: 800, apps: [], background: true)
+        let cli = claimant(5, pid: 900, apps: ["com.apple.Maps"])
+        let secondKugelblitz = claimant(6, pid: 500, apps: ["me.metaebene.Kugelblitz"])
+        #expect(Arbiter.appsWithOwnClient([glider, kugelblitz, shuttle, stagehand, cli, secondKugelblitz],
+                                          bundleID: { names[$0] }) == ["com.cockos.reaper", "me.metaebene.Kugelblitz"])
+        #expect(Arbiter.appsWithOwnClient([glider, stagehand, cli], bundleID: { names[$0] }).isEmpty)
+    }
+
     /// In the background, whoever last had it in front wins; a client that never had it in front comes last.
     @Test func backgroundGoesToTheLatestFrontUse() {
         let stagehand = claimant(1, background: true)

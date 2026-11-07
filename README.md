@@ -79,6 +79,9 @@ juggler.onEvent = { event in
 juggler.start()
 ```
 
+A client that steers other apps can leave alone those that have a client of their own:
+`juggler.appsWithOwnClient` names them, `juggler.onAppsWithOwnClient` reports changes.
+
 Embed `Space Juggler.app` as `Contents/Helpers/Space Juggler.app`: `Scripts/build-space-juggler.sh [debug|release]
 <directory>` builds it (`SIGN_IDENTITY` = your identity; `UNIVERSAL=1`, `TIMESTAMP=1` for distribution; `SCRATCH_PATH` = a build
 directory of your own, since SwiftPM's checkout of the package is read-only). The client

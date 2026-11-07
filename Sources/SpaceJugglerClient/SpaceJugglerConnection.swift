@@ -49,12 +49,18 @@ public final class SpaceJugglerConnection {
     /// Every input report as it came, report ID first, while this client holds and its claim asks for them
     /// (`Claim.raw`, ADR-0006).
     public var onReport: ([UInt8], _ device: String) -> Void = { _, _ in }
+    /// `appsWithOwnClient` changed (ADR-0014). A callback of its own, not an `Event`: apps switching over every event
+    /// keep compiling.
+    public var onAppsWithOwnClient: (Set<String>) -> Void = { _ in }
     public private(set) var devices: [SpaceMouseDevice] = []
     public private(set) var holds = false
     public private(set) var brokerVersion: Int?
     /// The protocol the broker speaks; below `SpaceJuggler.protocolVersion` it lacks the newer messages (`describe`,
     /// `report`).
     public private(set) var brokerProtocolVersion: Int?
+    /// The apps that have a client of their own, such as Kugelblitz (ADR-0014): one that steers other apps leaves
+    /// them alone. Empty while not connected and from a broker before version 15.
+    public private(set) var appsWithOwnClient: Set<String> = []
 
     private let name: String
     private var claim: Claim
@@ -189,6 +195,7 @@ public final class SpaceJugglerConnection {
             requests.forEach { $0.completion(DeviceDescription(device: device, error: "Space Juggler gone")) }
         }
         if holds { setHolds(false) }
+        setAppsWithOwnClient([])
         onEvent(.disconnected)
         guard running else { return }
         attempt = 0
@@ -278,9 +285,17 @@ public final class SpaceJugglerConnection {
             onReport(bytes, device)
         case .description(let description):
             describing.removeValue(forKey: description.device)?.forEach { $0.completion(description) }
+        case .appsWithOwnClient(let apps):
+            setAppsWithOwnClient(Set(apps))
         case .status, .handingOver:
             break
         }
+    }
+
+    private func setAppsWithOwnClient(_ apps: Set<String>) {
+        guard apps != appsWithOwnClient else { return }
+        appsWithOwnClient = apps
+        onAppsWithOwnClient(apps)
     }
 
     /// Losing the input lets go of everything the app still thinks is held.

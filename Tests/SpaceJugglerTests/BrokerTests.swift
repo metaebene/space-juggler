@@ -14,6 +14,8 @@ struct BrokerTests {
         var events: [SpaceJugglerConnection.Event] = []
         var holds: Bool? { events.lazy.compactMap { if case .holding(let holds) = $0 { holds } else { nil } }.last }
         var connected: Bool { events.contains { if case .connected = $0 { true } else { false } } }
+        /// Every `appsWithOwnClient` the client was told, in order (ADR-0014).
+        var appsWithOwnClient: [Set<String>] = []
     }
 
     /// One elected broker in a directory of its own, left again through a handover at the end.
@@ -25,12 +27,14 @@ struct BrokerTests {
         private(set) var log: [String] = []
         private var clients: [SpaceJugglerConnection] = []
 
-        init(version: Int = SpaceJuggler.version, linger: TimeInterval = 60) {
+        /// `ownBundleID`: the app this test process plays for the broker (every client here shares its process ID).
+        init(version: Int = SpaceJuggler.version, linger: TimeInterval = 60, ownBundleID: String? = nil) {
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("sj-\(UUID().uuidString.prefix(8))")
             place = BrokerPlace(directory: directory)
             broker = Broker(version: version, place: place, linger: linger, usesDevices: false,
                             settings: UserDefaults(suiteName: "me.metaebene.SpaceJuggler.tests.\(UUID())")!,
-                            record: .init(version: version, path: "/usr/bin/true"))
+                            record: .init(version: version, path: "/usr/bin/true"),
+                            bundleID: { $0 == getpid() ? ownBundleID : nil })
             broker.onLeave = { [weak self] in self?.left = true }
             broker.log = { [weak self] in self?.log.append($0) }
             guard case .elected(let lockFile) = Election.run(place: place, version: version, log: { _ in }) else {
@@ -43,6 +47,7 @@ struct BrokerTests {
             let recorder = Recorder()
             let client = SpaceJugglerConnection(name: name, claim: claim ?? Claim(apps: []), launcher: .none, place: place)
             client.onEvent = { recorder.events.append($0) }
+            client.onAppsWithOwnClient = { recorder.appsWithOwnClient.append($0) }
             client.start()
             clients.append(client)
             return recorder
@@ -150,6 +155,38 @@ struct BrokerTests {
         #expect(status?.driver == false)
         connection.close()
         await harness.finish()
+    }
+
+    /// ADR-0014: a client steering other apps hears when an app gets a client of its own and when it goes.
+    @Test func everyClientHearsWhichAppsHaveAClientOfTheirOwn() async {
+        let kugelblitzID = "me.metaebene.Kugelblitz"
+        let harness = Harness(ownBundleID: kugelblitzID)
+        let glider = harness.client("Space Glider", Claim(apps: ["com.apple.Maps"]))
+        await Self.until { glider.connected }
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(glider.appsWithOwnClient.isEmpty, "nothing to tell yet: no callback for the empty start")
+        let kugelblitz = harness.client("Kugelblitz", Claim(apps: [kugelblitzID]))
+        await Self.until { glider.appsWithOwnClient.last == [kugelblitzID] && kugelblitz.appsWithOwnClient.last == [kugelblitzID] }
+        #expect(glider.appsWithOwnClient == [[kugelblitzID]])
+        #expect(kugelblitz.appsWithOwnClient == [[kugelblitzID]], "told after its own welcome too")
+        #expect(harness.broker.status.appsWithOwnClient == [kugelblitzID])
+        harness.stopClient(1)
+        await Self.until { glider.appsWithOwnClient.last == [] }
+        #expect(glider.appsWithOwnClient == [[kugelblitzID], []])
+        await harness.finish()
+    }
+
+    /// ADR-0014: a client built before the message reads on past it (`LineDecoder` drops a line it cannot decode).
+    @Test func anOlderClientDropsTheMessageUnread() {
+        enum OlderBrokerMessage: Decodable, Equatable {
+            case welcome(version: Int, protocolVersion: Int)
+            case holding(Bool)
+        }
+        var decoder = LineDecoder<OlderBrokerMessage>()
+        var data = LineEncoder.encode(BrokerMessage.welcome(version: 15, protocolVersion: SpaceJuggler.protocolVersion))
+        data.append(LineEncoder.encode(BrokerMessage.appsWithOwnClient(apps: ["me.metaebene.Kugelblitz"])))
+        data.append(LineEncoder.encode(BrokerMessage.holding(true)))
+        #expect(decoder.feed(data) == [.welcome(version: 15, protocolVersion: SpaceJuggler.protocolVersion), .holding(true)])
     }
 
     @Test func onlyANewerBrokerIsHandedOverTo() async {

@@ -22,6 +22,10 @@ public final class Broker {
     private let usesDevices: Bool
     private let settings: UserDefaults
     private let record: BrokerPlace.Newest
+    /// The bundle ID of a client's process, to tell which apps have a client of their own (ADR-0014).
+    private let bundleID: (Int32) -> String?
+    /// The apps with a client of their own, as last told to the clients (ADR-0014).
+    private var appsWithOwnClient: [String] = []
     private var lockFile: Int32 = -1
     private var listenFD: Int32 = -1
     private var acceptSource: DispatchSourceRead?
@@ -52,15 +56,18 @@ public final class Broker {
     public var onLeave: () -> Void = { exit(0) }
     public var log: (String) -> Void = { _ in }
 
-    /// `record` is how a client starts this broker again (newest wins, ADR-0001).
+    /// `record` is how a client starts this broker again (newest wins, ADR-0001); `bundleID` names the app a client's
+    /// process is (tests pass their own).
     public init(version: Int = SpaceJuggler.version, place: BrokerPlace = .standard, linger: TimeInterval = 10,
-                usesDevices: Bool = true, settings: UserDefaults = .standard, record: BrokerPlace.Newest) {
+                usesDevices: Bool = true, settings: UserDefaults = .standard, record: BrokerPlace.Newest,
+                bundleID: @escaping (Int32) -> String? = { NSRunningApplication(processIdentifier: $0)?.bundleIdentifier }) {
         self.version = version
         self.place = place
         self.linger = linger
         self.usesDevices = usesDevices
         self.settings = settings
         self.record = record
+        self.bundleID = bundleID
     }
 
     /// Starts serving; `lockFile` comes from `Election` and stays open while the broker runs.
@@ -137,7 +144,7 @@ public final class Broker {
             clients: clients.compactMap { id, client in
                 client.claimant.map { .init(id: id, name: client.name, processID: $0.processID, claim: $0.claim, holds: id == holder) }
             }.sorted { $0.id < $1.id },
-            driver: driverMode)
+            driver: driverMode, appsWithOwnClient: appsWithOwnClient)
     }
 
     /// The device the driver's input is put down to: the driver merges every SpaceMouse and does not say which one
@@ -226,18 +233,21 @@ public final class Broker {
             clients[id]?.hello = hello
             connection.send(.welcome(version: version, protocolVersion: SpaceJuggler.protocolVersion))
             connection.send(.devices(devices.list))
+            connection.send(.appsWithOwnClient(apps: appsWithOwnClient))
             if hello.protocolVersion != SpaceJuggler.protocolVersion { say("\(hello.name) speaks protocol \(hello.protocolVersion)") }
             if let claim = hello.claim {
                 clients[id]?.claimant = Claimant(id: id, processID: hello.processID, claim: claim, connected: id)
                 say("\(hello.name) (pid \(hello.processID), v\(hello.version)) claims \(Self.describe(claim))")
                 lingerWork?.cancel()
                 arbitrate()
+                updateAppsWithOwnClient()
                 onChange()
             }
         case .claim(let claim):
             clients[id]?.claimant?.claim = claim
             say("\(clients[id]?.name ?? "?") claims \(Self.describe(claim))")
             arbitrate()
+            updateAppsWithOwnClient()
             onChange()
         case .setLED(let device, let on):
             if driverMode {
@@ -265,6 +275,7 @@ public final class Broker {
         if client.claimant != nil {
             say("\(client.name) left")
             arbitrate()
+            updateAppsWithOwnClient()
             onChange()
         }
         scheduleLingerIfIdle()
@@ -286,6 +297,16 @@ public final class Broker {
     /// The holder asked for raw input reports (a probe, ADR-0006).
     private var holderWantsReports: Bool {
         holder.flatMap { clients[$0]?.claimant?.claim.raw } ?? false
+    }
+
+    /// Tells every client which apps have a client of their own, when that changed (ADR-0014).
+    private func updateAppsWithOwnClient() {
+        guard !leaving else { return }
+        let apps = Arbiter.appsWithOwnClient(clients.values.compactMap(\.claimant), bundleID: bundleID)
+        guard apps != appsWithOwnClient else { return }
+        appsWithOwnClient = apps
+        say("own clients: " + (apps.isEmpty ? "none" : apps.joined(separator: ", ")))
+        for client in clients.values where client.hello != nil { client.connection.send(.appsWithOwnClient(apps: apps)) }
     }
 
     // MARK: - Arbitration
