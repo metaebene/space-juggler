@@ -13,6 +13,8 @@ struct DriverRetry: Sendable, Equatable {
     /// Failures since the last success or since the helper came.
     private(set) var failures = 0
     private(set) var lastAttempt: Date?
+    /// Why the last attempt failed; nil after a success.
+    private(set) var lastReason: String?
     private var lastLogged: String?
 
     /// What follows a failure: how long to wait, and the line for the log, if this one is to be logged – the first,
@@ -26,6 +28,7 @@ struct DriverRetry: Sendable, Equatable {
     mutating func failed(_ reason: String, at now: Date) -> Next {
         failures += 1
         lastAttempt = now
+        lastReason = reason
         let delay = Self.delays[min(failures, Self.delays.count) - 1]
         let changed = reason != lastLogged
         guard changed || failures & (failures - 1) == 0 else { return Next(delay: delay, log: nil) }

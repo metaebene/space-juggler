@@ -41,6 +41,10 @@ public final class Broker {
     /// 3Dconnexion's helper runs and holds the SpaceMice: Space Juggler goes through the driver (ADR-0004).
     private var driverMode = false
     private let driver = DriverClient()
+    /// When the broker first saw the helper in this run of driver mode, for a helper without a launch date.
+    private var helperSeen: Date?
+    /// Counts the checks of `DriverHealth`: one scheduled before driver mode ended and began again does nothing.
+    private var healthChecks = 0
 
     /// Something the menu shows changed: devices, clients, holder.
     public var onChange: () -> Void = {}
@@ -94,6 +98,7 @@ public final class Broker {
             onChange()
         }
         driver.log = { [weak self] in self?.say($0) }
+        driver.onChange = { [weak self] in self?.updateDriverProblem() }
         driver.onAxes = { [weak self] axes in
             guard let self, let device = driverDevice else { return }
             toHolder(.axes(device: device.id, axes: axes))
@@ -146,14 +151,42 @@ public final class Broker {
         driverMode = runs
         devices.driverHolds = runs
         say(runs ? "3Dconnexion helper runs: through the driver" : "3Dconnexion helper gone: seizing again")
+        helperSeen = runs ? Date() : nil
         if runs {
             devices.want(false)
             driver.start()
+            scheduleHealthCheck()
         } else {
             driver.stop()
         }
+        updateDriverProblem(announce: false)
         arbitrate()
         devices.onChange()
+    }
+
+    /// While the helper runs: whether it finished launching is not observed, so it is looked at every few seconds.
+    private func scheduleHealthCheck() {
+        healthChecks += 1
+        let number = healthChecks
+        MainActor.after(DriverHealth.checkInterval) { [weak self] in
+            guard let self, driverMode, number == healthChecks else { return }
+            updateDriverProblem()
+            scheduleHealthCheck()
+        }
+    }
+
+    /// Tells every client why the driver passes nothing on, once when it begins, changes or ends (ADR-0013).
+    private func updateDriverProblem(announce: Bool = true) {
+        let helper = driverMode ? DriverClient.helper.map {
+            DriverHealth.Helper(since: $0.launchDate ?? helperSeen ?? Date(), finishedLaunching: $0.isFinishedLaunching)
+        } : nil
+        let problem = DriverHealth.problem(helper: helper, registered: driver.isRegistered, failures: driver.failures,
+                                           lastFailure: driver.lastFailure, now: Date())
+        guard problem != devices.driverProblem else { return }
+        let had = devices.driverProblem != nil
+        devices.driverProblem = problem
+        if let problem { say("driver problem: \(problem.detail)") } else if had { say("driver problem over") }
+        if announce { devices.onChange() }
     }
 
     public func isEnabled(_ device: String) -> Bool {

@@ -45,12 +45,17 @@ final class Devices {
     private var wanted = false
     /// 3Dconnexion's helper holds the devices; they are reported as "driver" (ADR-0004).
     var driverHolds = false
+    /// Why the driver passes nothing on, for every device it holds (ADR-0013).
+    var driverProblem: DriverProblem?
 
     var list: [SpaceMouseDevice] {
         entries.values.map { entry in
             var info = entry.info
             info.enabled = isEnabled(info.id)
-            if driverHolds, info.state != "open" { info.state = "driver" }
+            if driverHolds, info.state != "open" {
+                info.state = "driver"
+                info.driverProblem = driverProblem
+            }
             return info
         }.sorted { $0.id < $1.id }
     }

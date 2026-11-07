@@ -31,6 +31,8 @@ final class DriverClient {
     var onAxes: (SpaceMouseAxes) -> Void = { _ in }
     var onButtons: (UInt32) -> Void = { _ in }
     var log: (String) -> Void = { _ in }
+    /// The registration failed, went through or ended: the broker looks at `DriverHealth` again (ADR-0013).
+    var onChange: () -> Void = {}
 
     private var api: ConnexionAPI?
     private var clientID: UInt16 = 0
@@ -43,12 +45,18 @@ final class DriverClient {
     private var retry = DriverRetry()
 
     var isRegistered: Bool { clientID != 0 }
+    /// Failed registrations since the last success or since the helper came, and why the last one failed.
+    var failures: Int { retry.failures }
+    var lastFailure: String? { retry.lastReason }
 
     /// Whether 3Dconnexion's helper runs, which then holds every SpaceMouse. From NSWorkspace's list, the one the
     /// broker observes: `NSRunningApplication.runningApplications(withBundleIdentifier:)` missed the helper for seconds
     /// after it had appeared in that list (measured 2026-10-15), and no later change of the list corrected it.
-    @MainActor static var helperRuns: Bool {
-        NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == helperBundleID && !$0.isTerminated }
+    @MainActor static var helperRuns: Bool { helper != nil }
+
+    /// The running helper, from the same list.
+    @MainActor static var helper: NSRunningApplication? {
+        NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == helperBundleID && !$0.isTerminated }
     }
 
     func start() {
@@ -74,6 +82,7 @@ final class DriverClient {
         let next = retry.failed(reason, at: Date())
         if let line = next.log { log(line) }
         schedule(after: next.delay)
+        onChange()
     }
 
     private func register() {
@@ -113,6 +122,7 @@ final class DriverClient {
         let failures = retry.succeeded()
         log("driver: registered as manual client \(clientID)\(failures == 0 ? "" : " after \(failures) failed attempts")")
         updateActivation()
+        onChange()
     }
 
     /// Takes the driver's data (true) or leaves it to the frontmost app's own client (false). An app that wants it
@@ -141,6 +151,7 @@ final class DriverClient {
         starting = false
         scheduled += 1
         retry = DriverRetry()
+        defer { onChange() }
         guard let api else { return }
         if clientID != 0 {
             if active { control(Self.controlDeactivate) }

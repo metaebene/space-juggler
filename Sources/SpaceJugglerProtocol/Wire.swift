@@ -35,6 +35,26 @@ public struct Claim: Codable, Sendable, Equatable {
     }
 }
 
+/// What keeps 3Dconnexion's driver from passing a device's input on while its helper holds it (ADR-0013). A code a
+/// client knows it names in its own words; one it does not know it shows by `detail`.
+public struct DriverProblem: Codable, Sendable, Equatable {
+    /// `helperNotResponding` or `driverNotAnswering`; later brokers may add codes.
+    public var code: String
+    /// What the broker found, in English, for logs and problem reports.
+    public var detail: String
+
+    /// The helper runs, but has not finished launching after `DriverHealth.launchGrace` (it hangs, as on Tim's Mac on
+    /// 2026-11-07 with its driver extension switched off): nothing reaches anyone, and it keeps the device to itself.
+    public static let helperNotResponding = "helperNotResponding"
+    /// The helper launched, but the registration with the driver keeps failing.
+    public static let driverNotAnswering = "driverNotAnswering"
+
+    public init(code: String, detail: String) {
+        self.code = code
+        self.detail = detail
+    }
+}
+
 /// A SpaceMouse as Space Juggler knows it; sent to every client, holder or not (ADR-0003).
 public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
     /// `serial:<S/N>`, `bt:<address>` or `port:<vid>:<pid>@<location>` (ADR-0003).
@@ -65,11 +85,15 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
     public var axisFullScale: Int?
     /// Whether it has an LED (output report 4); nil from a broker of protocol 1.
     public var hasLED: Bool?
+    /// While `state` is "driver": why the driver passes nothing on (ADR-0013). nil = no problem known, or a broker
+    /// before version 13.
+    public var driverProblem: DriverProblem?
 
     public init(id: String, vendorID: Int, productID: Int, name: String, transport: String, serialNumber: String? = nil,
                 bluetoothAddress: String? = nil, locationID: Int? = nil, battery: Int? = nil, charging: Bool? = nil,
                 enabled: Bool = true, state: String = "closed", led: Bool? = nil, knowledge: SpaceMouseModel.Knowledge? = nil,
-                buttons: SpaceMouseButtons? = nil, axisFullScale: Int? = nil, hasLED: Bool? = nil) {
+                buttons: SpaceMouseButtons? = nil, axisFullScale: Int? = nil, hasLED: Bool? = nil,
+                driverProblem: DriverProblem? = nil) {
         self.id = id
         self.vendorID = vendorID
         self.productID = productID
@@ -87,6 +111,7 @@ public struct SpaceMouseDevice: Codable, Sendable, Equatable, Identifiable {
         self.buttons = buttons
         self.axisFullScale = axisFullScale
         self.hasLED = hasLED
+        self.driverProblem = driverProblem
     }
 
     /// The catalog's entry; nil for a model the catalog lacks (`buttons`, `hasLED` tell about it).
