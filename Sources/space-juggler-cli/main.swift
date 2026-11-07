@@ -113,7 +113,9 @@ MainActor.assumeIsolated {
             case .disconnected: say("[\(name)] Space Juggler gone")
             case .holding(let holds): say("[\(name)] \(holds ? "HOLDS the SpaceMouse" : "lost the SpaceMouse")")
             case .devices(let devices):
-                if !quiet { say("[\(name)] devices: " + devices.map { "\($0.name) \($0.id) \($0.state)" }.joined(separator: "; ")) }
+                if !quiet { say("[\(name)] devices: " + devices.map { device in
+                    "\(device.name) \(device.id) \(device.state)" + (device.driverProblem.map { " (\($0.code): \($0.detail))" } ?? "")
+                }.joined(separator: "; ")) }
             case .axes(let axes, let device):
                 axesCount += 1
                 if !quiet, axesCount % 10 == 1 { say("[\(name)] \(device) \(axes)") }
