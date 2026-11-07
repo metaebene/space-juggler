@@ -88,6 +88,10 @@ final class DriverClient {
         Self.current = self
         let handlers = api.setHandlers(messageHandler, addedHandler, removedHandler, false)
         guard handlers == 0 else {
+            // A failed call still counts as set: every later one returned -188 ("called multiple times without a
+            // following call to RegisterConnexionClient()"), so no retry could ever succeed (2026-11-07). Cleaning up
+            // makes the next try a real one (ADR-0012).
+            api.cleanup()
             self.api = nil
             Self.current = nil
             // -36: no helper to talk to – not running (Space Shuttle, release 0.1), or listed by NSWorkspace but not

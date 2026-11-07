@@ -16,6 +16,11 @@
 - A Kugelblitz user reported (2026-11-04): with the driver installed the SpaceMouse did nothing; without it, it worked.
   That this was the case is likely, not shown.
 - Tim (2026-11-05): fix it; the log must not fill up when the failure goes on, the tries may grow further apart.
+- Amended 2026-11-07 (version 13): with version 12 every try after a -36 returned -188, on Tim's Mac 32 times over
+  45 min while the helper ran (broker 00:46, helper 1.4.4), and Kugelblitz said "connected" while the SpaceMouse did
+  nothing. The framework counts a failed `SetConnexionHandlers` as set and refuses every later call ("called multiple
+  times without a following call to RegisterConnexionClient()"); measured with a probe: -36, then -188, after
+  `CleanupConnexionHandlers` -36 again, i.e. a real attempt.
 
 ## Decision
 
@@ -30,6 +35,8 @@
   and otherwise only the 2nd, 4th, 8th … with how often it failed and when it tries next ("driver:
   SetConnexionHandlers returned -36, failed 8 times; trying again in 10 min"); a day of failures writes about a dozen
   lines. A registration after failures says how many there were.
+- **A failed `SetConnexionHandlers` is cleaned up** (`CleanupConnexionHandlers`) before the next try, as a missing
+  client ID already was (amended 2026-11-07).
 - The helper going away (`stop`) ends the tries and starts the count afresh; its return starts them again as before
   (`registrationDelay`).
 
@@ -47,10 +54,12 @@
 - After a failed registration Space Juggler tries again, scheduled only by `DriverRetry`, never more often than its
   delays and `soonest`.
 - A failure is logged only when `DriverRetry` returns a line.
+- Every failure after `SetConnexionHandlers` was called ends with `CleanupConnexionHandlers` before the next try.
 
 ## Enforced and verified by
 
-- `Sources/SpaceJugglerCore/DriverRetry.swift`; `DriverClient.failed`, `schedule`, `want`, `stop`.
+- `Sources/SpaceJugglerCore/DriverRetry.swift`; `DriverClient.failed`, `schedule`, `want`, `stop`, `register` (the
+  cleanup after both failures).
 - `Tests/SpaceJugglerTests/DriverRetryTests.swift`: the delays, the logged failures of a thousand (1, 2, 4 … 512), a new
   reason at once, the early try and its limit, the fresh start after success.
 - Open at the device: a broker that got -36 and registered on a later try (seen only when it happens again; the

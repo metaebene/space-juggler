@@ -25,7 +25,7 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
 - Nur Space Juggler öffnet eine SpaceMouse (seize); Clients nie. Läuft der 3Dconnexion-Helper, meldet sich Space
   Juggler als einziger manueller Treiber-Client an (`'++++'`, **immer mit Namen**, ohne stürzt Helper 1.4.4 ab),
   aktiviert ihn nur für einen Halter, bedient dann nur Ansprüche für die vordere App (ADR-0004). Scheitert die
-  Anmeldung, versucht er es wieder, nur über `DriverRetry`: 2 s wachsend bis 30 min, früher, sobald eine App die
+  Anmeldung, räumt er sie ab (`CleanupConnexionHandlers`, sonst scheitert jeder weitere Versuch mit -188) und versucht es wieder, nur über `DriverRetry`: 2 s wachsend bis 30 min, früher, sobald eine App die
   SpaceMouse will (frühestens 10 s nach dem letzten Versuch); ins Log nur der erste, jeder neue Grund und dann der
   2., 4., 8. … Fehlschlag (ADR-0012).
 - Space Juggler ist ein `LSUIElement`-Bundle in jeder Client-App (`me.metaebene.SpaceJuggler`), gestartet nur über
