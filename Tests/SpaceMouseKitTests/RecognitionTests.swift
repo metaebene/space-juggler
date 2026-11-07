@@ -19,6 +19,21 @@ let travelerDescriptor: [UInt8] = hex("""
     c0a102850909249507b102c0a102850a09259507b102c0a102850b09269501b102c0c0c0
     """)
 
+/// The Spaceball 5000's report descriptor (046D:C621, fw 0x0222), from the Space Probe report in issue #8 (2026-11-05).
+let spaceballDescriptor: [UInt8] = hex("""
+    05010908a101a1008501160cfe26f40136008046ff7f093009310932751095038102c0a1008502093309340935751095038102c0a1028503\
+    050105091901290d15002501350045017501950d810295038103c00600ff0901a1021580257f7508093aa102850509209501b102c0a10285\
+    0609219501b102c0a102850709229501b102c0a102850809239507b102c0a102850909249507b102c0a102850a09259507b102c0c0c0
+    """)
+
+/// The SpaceMouse Plus's report descriptor (046D:C603, fw 0x0300), from the Space Probe report in issue #9 (2026-11-05).
+let plusDescriptor: [UInt8] = hex("""
+    05010908a101a1008501160cfe26f40136008046ff7f093009310932751095038106c0a1008502093309340935751095038106c0a1028503\
+    050105091901290c15002501350045017501950c810295048103c0a10285040508194b294d15002501950375019102950175059103c00600\
+    ff0901a1021580257f7508093aa102850509209501b102c0a102850609219501b102c0a102850709229501b102c0a102850809239507b102\
+    c0a102850909249507b102c0a102850a09259507b102c0a102850b09269501b102c0c0c0
+    """)
+
 func hex(_ text: String) -> [UInt8] {
     let digits = text.filter(\.isHexDigit)
     return stride(from: 0, to: digits.count - 1, by: 2).map { offset in
@@ -54,6 +69,28 @@ struct HIDReportDescriptorTests {
         #expect(descriptor.axisLogicalMaximum == 500)
         #expect(descriptor.axesDeclaredRelative)
         #expect(descriptor.buttonUsages == Array(1...8))
+        #expect(descriptor.hasLED)
+        #expect(descriptor.featureReportIDs == [0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B])
+    }
+
+    @Test func spaceballReports() throws {
+        let descriptor = try #require(HIDReportDescriptor(spaceballDescriptor))
+        #expect(descriptor.isMultiAxisController)
+        #expect(descriptor.report(3, .input)?.length == 3)
+        #expect(descriptor.axisLogicalMaximum == 500)
+        #expect(!descriptor.axesDeclaredRelative)
+        #expect(descriptor.buttonUsages == Array(1...13))
+        #expect(!descriptor.hasLED)
+        #expect(descriptor.featureReportIDs == [0x05, 0x06, 0x07, 0x08, 0x09, 0x0A])
+    }
+
+    @Test func plusReports() throws {
+        let descriptor = try #require(HIDReportDescriptor(plusDescriptor))
+        #expect(descriptor.isMultiAxisController)
+        #expect(descriptor.report(4, .output)?.length == 2)
+        #expect(descriptor.axisLogicalMaximum == 500)
+        #expect(descriptor.axesDeclaredRelative)
+        #expect(descriptor.buttonUsages == Array(1...12))
         #expect(descriptor.hasLED)
         #expect(descriptor.featureReportIDs == [0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B])
     }
@@ -105,6 +142,34 @@ struct RecognitionTests {
         #expect(model.hasStatusLED)
         #expect(model.buttons(0xFF) == [.key1, .key2, .key3, .key4, .key5, .key6, .key7, .key8])
         #expect(model.serialFeatureReportID == nil)
+    }
+
+    @Test func theSpaceball5000IsInTheCatalog() throws {
+        let model = try #require(SpaceMouseModel.recognise(vendorID: 0x046D, productID: 0xC621, product: "Spaceball 5000 USB",
+                                                           descriptor: HIDReportDescriptor(spaceballDescriptor)))
+        #expect(model == .spaceball5000)
+        #expect(model.knowledge == .checked)
+        #expect(model.axisFullScale == 500)
+        #expect(!model.hasStatusLED)
+        #expect(model.buttons(0x0E00) == [.keyA, .keyB, .keyC])
+        #expect(model.buttons.name == "1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + A + B + C")
+        // The thirteenth declared button, which no key sets, stays unnamed.
+        #expect(model.buttons(0x1000) == [])
+        #expect(model.twoButtons == (.key1, .key2))
+    }
+
+    @Test func theSpaceMousePlusHasNoLEDThoughItDeclaresOne() throws {
+        let model = try #require(SpaceMouseModel.recognise(vendorID: 0x046D, productID: 0xC603, product: "SpaceMouse Plus USB",
+                                                           descriptor: HIDReportDescriptor(plusDescriptor)))
+        #expect(model == .spaceMousePlus)
+        #expect(model.knowledge == .published)
+        #expect(model.axisFullScale == 500)
+        #expect(!model.hasStatusLED)
+        #expect(model.buttons(0x0700) == [.star, .left, .right])
+        #expect(model.twoButtons == (.left, .right))
+        // A catalog model with an LED keeps it only where its descriptor declares one.
+        #expect(SpaceMouseModel.recognise(vendorID: 0x046D, productID: 0xC623, product: nil,
+                                          descriptor: HIDReportDescriptor(spaceballDescriptor))?.hasStatusLED == false)
     }
 
     @Test func anUnknownMultiAxisControllerIsGuessed() throws {
@@ -162,7 +227,7 @@ struct RecognitionTests {
     @Test func buttonNames() {
         #expect(SpaceMouseButtons.viewRollReverse.name == "Roll back")
         #expect(SpaceMouseButtons([.escape, .key1]).name == "1 + ESC")
-        #expect(SpaceMouseButtons.allCases.count == 43)
+        #expect(SpaceMouseButtons.allCases.count == 47)
     }
 
     @Test func directions() {

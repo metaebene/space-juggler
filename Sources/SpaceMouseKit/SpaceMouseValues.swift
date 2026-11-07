@@ -147,11 +147,17 @@ public struct SpaceMouseButtons: OptionSet, Sendable, Hashable, Codable, CaseIte
     public static let dominant = SpaceMouseButtons(rawValue: 1 << 40)
     public static let panZoom = SpaceMouseButtons(rawValue: 1 << 41)
     public static let config = SpaceMouseButtons(rawValue: 1 << 42)
+    /// The Spaceball 5000's three keys under the thumb, after its 1 … 9 (Space Probe, issue #8).
+    public static let keyA = SpaceMouseButtons(rawValue: 1 << 43)
+    public static let keyB = SpaceMouseButtons(rawValue: 1 << 44)
+    public static let keyC = SpaceMouseButtons(rawValue: 1 << 45)
+    /// The SpaceMouse Plus's `*`, after its 1 … 8 (Space Probe, issue #9).
+    public static let star = SpaceMouseButtons(rawValue: 1 << 46)
 
     /// The buttons protocol 1 knows (a `UInt32` there).
     public static let protocol1 = SpaceMouseButtons(rawValue: 0xFFFF_FFFF)
 
-    public static let allCases: [SpaceMouseButtons] = (0...42).map { SpaceMouseButtons(rawValue: 1 << UInt64($0)) }
+    public static let allCases: [SpaceMouseButtons] = (0...46).map { SpaceMouseButtons(rawValue: 1 << UInt64($0)) }
 
     /// Each button held, alone.
     public var each: [SpaceMouseButtons] { Self.allCases.filter { contains($0) } }
@@ -166,11 +172,12 @@ public struct SpaceMouseButtons: OptionSet, Sendable, Hashable, Codable, CaseIte
         .key9: "9", .key10: "10", .key11: "11", .key12: "12", .viewLeft: "L", .viewBottom: "B", .viewBack: "BK",
         .viewRollReverse: "Roll back", .viewIso1: "ISO1", .viewIso2: "ISO2", .enter: "ENTER", .delete: "DEL", .tab: "TAB",
         .space: "SPACE", .view1: "V1", .view2: "V2", .view3: "V3", .plus: "+", .minus: "−", .dominant: "DOMINANT",
-        .panZoom: "PAN/ZOOM", .config: "CONFIG",
+        .panZoom: "PAN/ZOOM", .config: "CONFIG", .keyA: "A", .keyB: "B", .keyC: "C", .star: "*",
     ]
 
     /// The two buttons a program uses that only knows two, among `all`: left and right where the device has them (the
-    /// Compact), else MENU and FIT (the Pro, Space Glider ADR-0025), else keys 1 and 2 (the SpaceTraveler).
+    /// Compact, the side keys of the SpaceMouse Plus), else MENU and FIT (the Pro, Space Glider ADR-0025), else keys 1
+    /// and 2 (the SpaceTraveler, the Spaceball 5000).
     public static func twoButtons(of all: SpaceMouseButtons) -> (left: SpaceMouseButtons, right: SpaceMouseButtons) {
         all.contains(.left) ? (.left, .right) : all.contains(.menu) ? (.menu, .fit) : (.key1, .key2)
     }

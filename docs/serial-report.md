@@ -23,6 +23,8 @@ report 0x08 exactly as the Wireless does: vendor page 0xFF00, usage 0x23, seven 
 | 2026-10-15 | SpaceMouse Compact 256F:C635, USB, a second device (other Mac) | `08 53 00 01 01 90 4f e5` | not compared |
 | 2026-10-16 | SpaceTraveler 046D:C623, USB (Space Probe, issue #1) | `08 86 01 d5 0f 00 00 77` | "T30U31CX \*06241985\*" |
 | 2026-10-17 | the same SpaceTraveler, second report | `08 86 01 d5 0f 00 00 77` | read as "T3oU32CX \*06241985\*" |
+| 2026-11-05 | Spaceball 5000 046D:C621, USB (Space Probe, issue #8) | `08 ee 23 55 09 00 00 66` | "S12U22XX \*03280220\*" |
+| 2026-11-05 | SpaceMouse Plus 046D:C603, USB (Space Probe, issue #9) | `08 21 1a 0a 0c 00 00 dd` | "P30U30XX \*04360143\*" |
 
 - SpaceNavigator: all 0xFF on both devices, nothing stored; it stays at model + USB port.
 - SpaceMouse Pro: all zero, nothing stored; it stays at model + USB port.
@@ -30,6 +32,11 @@ report 0x08 exactly as the Wireless does: vendor page 0xFF00, usage 0x23, seven 
   6241985 (0x5F3EC1) nor any other run of the label's digits appears in the bytes, big- or little-endian. Space Juggler
   does not ask 046D models for report 0x08 anyway; the SpaceTraveler stays at model + USB port. The same bytes on
 both readings; the label was read differently the second time (only "\*06241985\*" is the same).
+- The three old 046D models (SpaceTraveler, Spaceball 5000, SpaceMouse Plus) share one shape: four bytes, two zero
+  bytes, one more byte (a check byte?). None holds its label's number (3280220, 4360143, 6241985) in any reading tried.
+  As a little-endian number the four bytes rise in the labels' order (156574702, 201988641, 265617798); read as seconds
+  since 2000-01-01 they would be 2004-12-17, 2006-05-26 and 2008-06-01, within the years these models were sold. A
+  production time is a guess, not a finding; either way it is no serial number, and the three stay at model + USB port.
 - SpaceMouse Compact: filled on both devices, and different. The first has two letters "SS", then five bytes: as one
   number 4318191532 ("SS4318191532"); the Wireless's decoding (one letter, six bytes) would give "S91263783296940".
   The second has "S", a zero byte, then five bytes: 4321202149 ("S4321202149", the same in both readings).

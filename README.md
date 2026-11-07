@@ -26,12 +26,14 @@ Checked at a device:
 | SpaceMouse Pro | 046D:C62B | 15 |
 | SpaceMouse Wireless (Bluetooth and on its cable) | 256F:C63A | 2 |
 | SpaceTraveler | 046D:C623 | 8 |
+| Spaceball 5000 USB | 046D:C621 | 12 |
 
-**Not yet checked** — known from public sources only ([docs/models.md](docs/models.md)); they should work, but nobody
-here has seen them do so:
+**Not yet checked** — known from public sources only ([docs/models.md](docs/models.md)), or not every key placed; they
+should work, but nobody here has seen all of it do so:
 
 | Model | Vendor:Product | Buttons |
 |---|---|---|
+| SpaceMouse Plus USB (seen at a device, but which side key is which is open) | 046D:C603 | 11 |
 | SpaceNavigator for Notebooks | 046D:C628 | 2 |
 | SpaceExplorer | 046D:C627 | 15 |
 | SpacePilot | 046D:C625 | 21 |

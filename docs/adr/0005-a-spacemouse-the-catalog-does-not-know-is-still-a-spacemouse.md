@@ -61,4 +61,8 @@
 - `Devices` matches by usage pair; `SpaceMouseValuesTests`.
 - A model nobody here owns, at its owner's device: the SpaceTraveler (046D:C623), not in the catalog, was recognised
   as `guessed` from its descriptor (axes, LED, eight buttons) and reported with Space Probe (issue #1, 2026-10-16).
+- Two more models nobody here owns, at their owners' devices (issues #8 and #9, 2026-11-05): a Spaceball 5000 USB
+  (046D:C621) and a SpaceMouse Plus USB (046D:C603), both recognised as `guessed` from their descriptors, axes and keys
+  read; now in the catalog. The Plus declares an LED it does not have, so the catalog's "no LED" now overrides the
+  descriptor (the LED is there only if both say so).
 - Open: a model from the published list at a device.

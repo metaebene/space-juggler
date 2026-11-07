@@ -71,6 +71,25 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
         buttonBits: [0: .key1, 1: .key2, 2: .key3, 3: .key4, 4: .key5, 5: .key6, 6: .key7, 7: .key8],
         knowledge: .checked, axisFullScale: 500)
 
+    /// Twelve keys printed 1 … 9, A, B, C at bits 0 … 11; the descriptor declares a thirteenth button nobody found. The
+    /// axes ±500 with our signs, no LED (Space Probe at the reporter's device, issue #8, 2026-11-05).
+    public static let spaceball5000 = SpaceMouseModel(
+        vendorID: 0x046D, productID: 0xC621, name: "Spaceball 5000",
+        buttonBits: [0: .key1, 1: .key2, 2: .key3, 3: .key4, 4: .key5, 5: .key6, 6: .key7, 7: .key8, 8: .key9,
+                     9: .keyA, 10: .keyB, 11: .keyC],
+        knowledge: .checked, axisFullScale: 500, hasStatusLED: false)
+
+    // MARK: - Seen at a device, not every key placed
+
+    /// Keys printed 1 … 8 and `*` at bits 0 … 8, two unprinted ones at bits 9 and 10, taken as the side keys beside the
+    /// cap (left, right) until someone says which is where; the descriptor declares a twelfth button and an LED, the
+    /// device has neither. The axes ±500 with our signs (Space Probe at the reporter's device, issue #9, 2026-11-05).
+    public static let spaceMousePlus = SpaceMouseModel(
+        vendorID: 0x046D, productID: 0xC603, name: "SpaceMouse Plus",
+        buttonBits: [0: .key1, 1: .key2, 2: .key3, 3: .key4, 4: .key5, 5: .key6, 6: .key7, 7: .key8, 8: .star,
+                     9: .left, 10: .right],
+        axisFullScale: 500, hasStatusLED: false)
+
     // MARK: - From public sources (docs/models.md)
 
     public static let spaceNavigatorNotebook = SpaceMouseModel(vendorID: 0x046D, productID: 0xC628,
@@ -112,7 +131,7 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
                                                    buttonBits: enterpriseBits)
 
     public static let known: [SpaceMouseModel] = [
-        .compact, .spaceNavigator, .spaceMousePro, .spaceMouseWireless, .spaceTraveler,
+        .compact, .spaceNavigator, .spaceMousePro, .spaceMouseWireless, .spaceTraveler, .spaceball5000, .spaceMousePlus,
         .spaceNavigatorNotebook, .spaceExplorer, .spacePilot, .spacePilotPro, .spaceMouseWirelessCable,
         .spaceMouseWirelessReceiver, .spaceMouseProWirelessCable, .spaceMouseProWirelessReceiver,
         .spaceMouseProWireless, .enterprise,
@@ -130,7 +149,8 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
                                            0xC668, 0xC671]
 
     /// The model of a device: the catalog's entry, else one built from its report descriptor if that is a
-    /// Multi-axis Controller (ADR-0005); nil for anything else. The axis range and the LED follow the descriptor.
+    /// Multi-axis Controller (ADR-0005); nil for anything else. The axis range follows the descriptor; the LED is there
+    /// only where the descriptor and the catalog both say so (the SpaceMouse Plus declares one it does not have).
     public static func recognise(vendorID: Int, productID: Int, product: String?,
                                  descriptor: HIDReportDescriptor?) -> SpaceMouseModel? {
         guard vendorIDs.contains(vendorID), !(vendorID == 0x256F && ignored.contains(productID)) else { return nil }
@@ -138,7 +158,7 @@ public struct SpaceMouseModel: Sendable, CustomStringConvertible {
         if let model = matching(vendorID: vendorID, productID: productID) {
             return SpaceMouseModel(vendorID: vendorID, productID: productID, name: model.name, buttonBits: model.buttonBits,
                                    knowledge: model.knowledge, axisFullScale: range ?? model.axisFullScale,
-                                   hasStatusLED: descriptor.map(\.hasLED) ?? model.hasStatusLED)
+                                   hasStatusLED: model.hasStatusLED && (descriptor.map(\.hasLED) ?? true))
         }
         guard let descriptor, descriptor.isMultiAxisController else { return nil }
         let bits = Set(descriptor.buttonUsages.map { $0 - 1 })

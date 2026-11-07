@@ -128,7 +128,7 @@ struct SpaceMouseReportExtrasTests {
         #expect(traveler.left == .key1 && traveler.right == .key2)
         #expect(SpaceMouseModel.spaceMousePro.asTwoButtons([.menu, .key1]) == .left)
         #expect(SpaceMouseModel.compact.asTwoButtons([.left, .right]) == [.left, .right])
-        #expect(SpaceMouseModel.known.filter { !$0.hasStatusLED } == [.spacePilot])
+        #expect(SpaceMouseModel.known.filter { !$0.hasStatusLED } == [.spaceball5000, .spaceMousePlus, .spacePilot])
         #expect(SpaceMouseModel.known.filter(\.statusLEDNeedsCable) == [.spaceMouseWireless, .spaceMouseProWireless])
     }
 }

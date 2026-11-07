@@ -15,10 +15,10 @@ thirteen bytes. Keys = physical keys; the button report is report 3.
 
 | Device | VID:PID | Transport | Keys | Axes | Button report | Knowledge |
 |---|---|---|---|---|---|---|
-| SpaceMouse Plus / Plus XT USB | 046D:C603 | USB | 9–11 (disputed) | ? | ? | L |
+| **SpaceMouse Plus USB** | 046D:C603 | USB | 11 (12 usages) | split, ±500 | 12 bits, 2 B | **D** (reported; side keys not placed) |
 | CadMan USB | 046D:C605 | USB | 4 (disputed) | ? | ? | L |
 | SpaceMouse Classic USB | 046D:C606 | USB 1.1 | 8 + "*" | ? | ? | L |
-| Spaceball 5000 USB | 046D:C621 | USB | 12 (13 usages) | split, ±500 | 13 bits, 2 B | H (descriptor) |
+| **Spaceball 5000 USB** | 046D:C621 | USB | 12 (13 usages) | split, ±500 | 13 bits, 2 B | **D** (reported) |
 | **SpaceTraveler** | 046D:C623 | USB | 8 | split, ±500 | 1 B, bits 0–7 | **D** (reported) |
 | SpacePilot | 046D:C625 | USB | 21 + LCD | split | bits 0–20 | M/H |
 | **SpaceNavigator** | 046D:C626 | USB | 2 | split, ±500 here (±350 in public dumps) | 2 bits | **D** |
@@ -60,14 +60,16 @@ every 256F device as 6DoF unless blacklisted and drops interfaces without axes.
   (IORegistry, 2026-10-04); the public SpaceNavigator dumps (three firmware variants, 202/217/228 B) say ±350. Open
   CASCADE switches to a ±32767 scale when it sees more than 350; OpenSCAD notes "−2595..2595 at max speed". Take the
   descriptor's logical maximum per device, clamp defensively.
-- **Relative flag.** SpaceNavigator, SpaceTraveler, Spaceball 5000 and SpaceMouse Pro declare their axes Relative
-  (`81 06`) though the values are absolute (Linux `hid-lg` and udev-hid-bpf patch it). C62E and later say Absolute.
+- **Relative flag.** SpaceNavigator, SpaceTraveler, SpaceMouse Plus, Spaceball 5000 (public descriptor) and SpaceMouse
+  Pro declare their axes Relative (`81 06`) though the values are absolute (Linux `hid-lg` and udev-hid-bpf patch it).
+  C62E and later say Absolute, and so does a Spaceball 5000 with firmware 0x0222 (issue #8).
   Read raw reports, never `IOHIDValue`'s relative semantics.
 - **Report 3, buttons.** Bit n = HID button usage n+1. 2 B on the two-button models, 6 B on the Pro family (7 B seen
   through a receiver), 22+ B on the Enterprise. The numbering is shared across models (see the Pro, SpacePilot Pro and
   Enterprise tables): the same bit is the same key wherever it exists.
 - **Report 4, LED (output).** Usage page 0x08 / 0x4B, one bit: `04 01` on, `04 00` off. spacenavd switches it on then off
-  at start because a Compact "fails to turn the LED off unless turned on first". The Spaceball 5000 has no LED report;
+  at start because a Compact "fails to turn the LED off unless turned on first". The Spaceball 5000 has no LED report
+  (seen at a device too); the SpaceMouse Plus declares one with three usages (0x4B–0x4D) but has no LED (issue #9);
   PySpaceMouse says the SpacePilot and C641 have none; the SpaceExplorer does not light it after plug-in.
 - **Report 0x17, battery (input).** Three bytes: percent (usage 0x06:0x20), then one vendor bit (0xFF00:0x27), probably
   "charging / on cable" (`17 64 01` on cable, `17 64 00` / `17 30 01` from a receiver; inferred). Seen on C62E, C62F,
@@ -86,10 +88,17 @@ every 256F device as 6DoF unless blacklisted and drops interfaces without axes.
   number in any reading tried, docs/serial-report.md), 0x09 `09 7f 7f 7f 7a 80 81 7d` and 0x0A
   `0a 7e 81 7e 7f 7a 78 bf` (near 128 again, 0x0A's last byte near 190 as on the Compact); GET fails for 0x05, 0x07
   and 0x0B, as on the Compact.
+- **Feature reports read at a Spaceball 5000** (046D:C621, fw 0x0222, Space Probe, issue #8, 2026-11-05): it declares
+  0x05–0x0A, no 0x0B. 0x06 `06 03`, 0x08 `08 ee 23 55 09 00 00 66`, 0x09 `09 7d 7c 7f 82 78 72 7f`, 0x0A
+  `0a 7e 77 7a 7d 7b 71 c0`; 0x05 and 0x07 answer empty.
+- **Feature reports read at a SpaceMouse Plus** (046D:C603, fw 0x0300, Space Probe, issue #9, 2026-11-05): 0x05–0x0B.
+  0x06 `06 03`, 0x08 `08 21 1a 0a 0c 00 00 dd`, 0x09 `09 7f 7c 82 80 85 7b 7f`, 0x0A `0a 9a 9e 9e 9d 9b a0 98` (near
+  0x9C, not 128 or 190 as elsewhere); GET fails for 0x05, 0x07 and 0x0B. 0x06 is `06 03` on every model read so far.
 - **USB serial string:** none on any real device found (iSerialNumber 0), on any model. Over Bluetooth the C63A has its
   Bluetooth address as the unique ID.
 - **Axis orientation:** spacenavd swaps and negates y/z for all 256F devices and for 046D C605, C621, C623, C625–C62B,
-  not for C603, C606, C640 — those older ones may differ from our signs.
+  not for C603, C606, C640. Over USB on macOS the C603 has our signs all the same (issue #9), as do C621 and C623;
+  spacenavd's exception is probably about the serial devices it shares code with.
 
 ## Per model
 
@@ -155,8 +164,24 @@ On macOS an extra "Virtual Mouse" interface appears while the 3Dconnexion helper
 **SpaceMouse Module C636 / C641.** OEM panel puck, "standard USB joystick, 6 axes, 10 bit", no keys, not supported by
 3DxWare. C641's name is disputed.
 
-**Spaceball 5000 USB C621.** Full descriptor public: split ±500, Relative, 13 button usages (12 printed), features
-0x05–0x0B, no LED.
+**Spaceball 5000 USB C621** — in `SpaceMouseKit`, checked at a device by its owner (Space Probe,
+github.com/metaebene/space-juggler/issues/8, 2026-11-05; label "SPACEBALL 5000 USB", bcdDevice 0x0222, low speed,
+macOS 27.0.1, no 3Dconnexion driver running). Descriptor 166 B: split axes in reports 1 and 2, logical ±500, declared
+**Absolute** (the public descriptor says Relative: other firmware); report 3 with thirteen button usages and three bits
+of padding; no output report, no LED; vendor features 0x05–0x0A. All twelve directions moved the expected axis with our
+signs (peaks 312–437 of 500). Twelve keys, printed 1 … 9, A, B, C, at bits 0 … 11 in that order (Blender numbers them
+alike, NDOF_BUTTON_1 … 9, A, B, C); the reporter found no key for the thirteenth usage (bit 12). `SpaceMouseKit` names
+them as printed (`keyA` … `keyC` added to the button set).
+
+**SpaceMouse Plus USB C603** — in `SpaceMouseKit` as `published`: seen at a device by its owner, but two keys not yet
+placed (Space Probe, github.com/metaebene/space-juggler/issues/9, 2026-11-05; label "PLUS", USB name "SpaceMouse Plus
+USB", bcdDevice 0x0300, bcdUSB 2.0, low speed, macOS 27.0.1, no 3Dconnexion driver). Descriptor 204 B: split axes,
+logical ±500, declared Relative; report 3 with twelve button usages and four bits of padding; output report 4 with
+three LED usages (0x4B–0x4D); features 0x05–0x0B. All twelve directions moved the expected axis with our signs (peaks
+356–495 of 500). Eleven keys: printed 1 … 8 at bits 0 … 7, `*` at bit 8, two without print at bits 9 and 10. The
+reporter: "no twelfth key, no LED" — the LED did not light with `04 01`. A 3Dconnexion forum post (2007, serial Plus)
+describes the Plus as nine keys 1–8 and `*` with two keys beside the cap; `SpaceMouseKit` takes bits 9 and 10 as those
+two, left and right like the Compact's, until the reporter says which is where.
 
 **Legacy serial devices** (Spaceball 1003–5000FLX, Magellan / SpaceMouse Classic / Plus serial). Not HID; out of scope.
 
@@ -175,7 +200,8 @@ Wireless from more than two buttons; Blender assumes Pro Wireless).
 4. C658: CadMouse Compact Wireless (FAQ, spacenavd) or a receiver PID (Blender, contradicted by its own issue).
 5. C641 and C62C: names unclear.
 6. SpaceNavigator axis range: ±500 here, ±350 in public dumps — firmware, or something the driver writes?
-7. Old devices' key counts (Plus/Plus XT, CadMan, Spaceball 5000's 13th usage).
+7. Old devices' key counts (CadMan; Plus XT). Settled at devices: the Spaceball 5000 has twelve keys for thirteen
+   usages, the SpaceMouse Plus USB eleven for twelve.
 
 ## Open at the device
 
@@ -187,7 +213,8 @@ What no public source answers, and what a probe run at someone's device has to c
 - Whether the Universal Receiver tells which device is paired in a slot, and that device's serial number.
 - Battery report and its second byte on C631, C632, C638, and over the Universal Receiver.
 - Every key of the SpaceExplorer, SpacePilot, SpacePilot Pro and Enterprise, to settle the conflicts above.
-- Axis signs on the 046D models spacenavd treats differently (C603, C606).
+- Axis signs on the 046D models spacenavd treats differently: C606 (C603 has ours).
+- Which of the SpaceMouse Plus's two unprinted keys is bit 9 and which bit 10.
 - The LED: which models light it, and the Compact's on-before-off behaviour.
 
 ## Consequences for SpaceMouseKit
@@ -201,7 +228,8 @@ What no public source answers, and what a probe run at someone's device has to c
 
 ## Sources
 
-**Device reports:** Space Probe reports as GitHub issues on metaebene/space-juggler (#1: SpaceTraveler).
+**Device reports:** Space Probe reports as GitHub issues on metaebene/space-juggler (#1: SpaceTraveler; #8: Spaceball
+5000 USB; #9: SpaceMouse Plus USB).
 
 **Code:** Blender `intern/ghost/intern/GHOST_NDOFManager.cc`, `GHOST_SystemWin32.cc` (processNDOF), issues #82412,
 #116393, #119206, PR !124155 · spacenavd `src/dev.c`, `src/dev_usb_linux.c`, `src/dev_usb_freebsd.c`,
