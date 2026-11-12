@@ -11,6 +11,8 @@ its input to one program at a time, by simple rules:
 Every client app carries Space Juggler inside its bundle and starts it when needed; whichever copy is newest runs, so
 updating any one app brings new device support to all of them. Nothing extra to install. With 3Dconnexion's driver
 running, Space Juggler becomes the driver's one client and hands the device back to the driver's own apps in front.
+While a SpaceMouse moves, Space Juggler tells macOS that someone is at the Mac, as a mouse would: no screen saver and
+no display sleep while you steer only with the SpaceMouse.
 
 The package also contains **SpaceMouseKit**, the model catalog and report decoding, usable on its own, and
 **Space Probe**, a small app that finds out what a SpaceMouse model sends (see below).

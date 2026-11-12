@@ -45,6 +45,8 @@ public final class Broker {
     /// 3Dconnexion's helper runs and holds the SpaceMice: Space Juggler goes through the driver (ADR-0004).
     private var driverMode = false
     private let driver = DriverClient()
+    /// Input from a seized SpaceMouse told to macOS as the user's activity (ADR-0015).
+    private let activity = UserActivity()
     /// When the broker first saw the helper in this run of driver mode, for a helper without a launch date.
     private var helperSeen: Date?
     /// Counts the checks of `DriverHealth`: one scheduled before driver mode ended and began again does nothing.
@@ -94,8 +96,15 @@ public final class Broker {
 
         devices.log = { [weak self] in self?.say($0) }
         devices.isEnabled = { [weak self] in self?.isEnabled($0) ?? true }
-        devices.onAxes = { [weak self] device, axes in self?.toHolder(.axes(device: device, axes: axes)) }
-        devices.onButtons = { [weak self] device, held in self?.toHolder(.buttons(device: device, held: held)) }
+        activity.log = { [weak self] in self?.say($0) }
+        devices.onAxes = { [weak self] device, axes in
+            self?.activity.axes(axes)
+            self?.toHolder(.axes(device: device, axes: axes))
+        }
+        devices.onButtons = { [weak self] device, held in
+            self?.activity.buttons()
+            self?.toHolder(.buttons(device: device, held: held))
+        }
         devices.onReport = { [weak self] device, bytes in self?.toHolder(.report(device: device, bytes: bytes)) }
         devices.wantsReports = { [weak self] in self?.holderWantsReports ?? false }
         devices.onChange = { [weak self] in
@@ -108,12 +117,14 @@ public final class Broker {
         driver.onChange = { [weak self] in self?.updateDriverProblem() }
         driver.onAxes = { [weak self] axes in
             guard let self, let device = driverDevice else { return }
+            activity.axes(axes)
             toHolder(.axes(device: device.id, axes: axes))
         }
         driver.onButtons = { [weak self] bits in
             guard let self, let device = driverDevice else { return }
             // The driver's bitmap in the device's numbering, named by the model of the device it is put down to.
             let held = devices.model(of: device.id)?.buttons(UInt64(bits)) ?? []
+            activity.buttons()
             toHolder(.buttons(device: device.id, held: held))
         }
         if usesDevices {
