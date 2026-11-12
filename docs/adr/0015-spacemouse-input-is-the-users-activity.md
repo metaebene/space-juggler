@@ -1,6 +1,6 @@
 # ADR-0015: SpaceMouse input is told to macOS as the user's activity
 
-- Status: proposed
+- Status: superseded in part by ADR-0016 (a declaration alone did not keep the screen saver off)
 - Date: 2026-11-12
 - Related: ADR-0001 (Space Juggler seizes every SpaceMouse), ADR-0002 (it reads, it never posts events), ADR-0004
   (the driver's input), ADR-0010 (the deflection from the cap's rest); Kugelblitz report f25fb962

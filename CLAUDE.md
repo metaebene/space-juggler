@@ -21,7 +21,7 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
   ab und schreibt einen Bericht fürs GitHub-Issue; `Scripts/build-space-probe.sh` (mit Space Juggler.app darin).
 - Entscheidungen: `docs/adr/`. Hardware-Erkenntnisse stehen noch in Stagehand (`docs/spacemouse-findings.md`).
 
-## Regeln (ADR-0001 … 0015)
+## Regeln (ADR-0001 … 0016)
 - Nur Space Juggler öffnet eine SpaceMouse (seize); Clients nie. Läuft der 3Dconnexion-Helper, meldet sich Space
   Juggler als einziger manueller Treiber-Client an (`'++++'`, **immer mit Namen**, ohne stürzt Helper 1.4.4 ab),
   aktiviert ihn nur für einen Halter, bedient dann nur Ansprüche für die vordere App (ADR-0004). Scheitert die
@@ -40,9 +40,11 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
   Space Shuttle in REAPER), entscheidet nur `Arbiter.appsWithOwnClient`; der Broker sagt es allen Clients nach dem
   `welcome` und bei jeder Änderung (`appsWithOwnClient`, im Client mit eigenem Callback statt neuem `Event`). Clients
   nutzen es nur für ihre Oberfläche (Space Glider graut solche Apps aus), nie, um ihren Anspruch zu ändern (ADR-0014).
-- Eingaben einer ergriffenen SpaceMouse erreichen den Leerlauf-Zähler von macOS nicht: Space Juggler meldet sie als
-  Aktivität des Nutzers, nur über `UserActivity` (`IOPMAssertionDeclareUserActivity`, nie ein Ereignis), Achsen
-  außerhalb von Null und Tasten, höchstens alle 10 s; Clients tun es nie selbst (ADR-0015).
+- Eingaben einer ergriffenen SpaceMouse erreichen den Leerlauf-Zähler von macOS nicht: Space Juggler meldet sie nur
+  über `UserActivity` (Achsen außerhalb von Null und Tasten, höchstens alle 10 s): als Aktivität des Nutzers
+  (`IOPMAssertionDeclareUserActivity`) und mit einer `PreventUserIdleDisplaySleep`-Assertion, denn nur sie hält den
+  Bildschirmschoner auf; frei nach der Leerlaufzeit des Nutzers, 1–10 min (`UserActivityPacing.hold`); nie ein
+  Ereignis, Clients tun es nie selbst (ADR-0015, ADR-0016).
 - Wer sie bekommt, entscheidet nur `Arbiter`: Anspruch auf die vordere App schlägt Hintergrund; im Hintergrund, wer sie
   zuletzt vorn hatte; niemand liest mit.
 - Es läuft genau ein Broker (`flock` auf `broker.lock`); der neueste gewinnt (Übergabe nur an eine höhere Version).
