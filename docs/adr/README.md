@@ -18,7 +18,7 @@
 | [0014](0014-every-client-hears-which-apps-have-a-client-of-their-own.md) | Every client hears which apps have a client of their own | proposed |
 | [0015](0015-spacemouse-input-is-the-users-activity.md) | SpaceMouse input is told to macOS as the user's activity, so a Mac steered with it does not go idle | superseded in part by 0016 |
 | [0016](0016-spacemouse-input-holds-off-the-screen-saver.md) | SpaceMouse input holds off the screen saver with a display assertion until the user's idle time after it | proposed |
-| [0017](0017-a-spacemouse-is-seized-only-once-its-cap-rests.md) | A SpaceMouse is seized only once macOS has seen its cap at rest | proposed |
+| [0017](0017-a-spacemouse-is-seized-only-once-its-cap-rests.md) | A SpaceMouse is seized only once macOS has seen its cap at rest | accepted |
 
 Template: Context, Decision, Consequences, Rules, Enforced and verified by (as in the client repositories). A change
 against an ADR's Rules needs a superseding ADR.
