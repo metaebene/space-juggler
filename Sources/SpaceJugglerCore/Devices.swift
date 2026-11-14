@@ -4,9 +4,9 @@ import IOUSBHost
 import SpaceJugglerProtocol
 
 /// Every attached SpaceMouse: a Multi-axis Controller of Logitech or 3Dconnexion, of a model in the catalog or not
-/// (ADR-0001, ADR-0003, ADR-0005). Opened seized only while `wanted`; own device object by registry ID (never configure
-/// the manager's), report buffer alive until the cancel handler ran, the only writes are output report 4 (LED); feature
-/// reports are only read (GET, through the HID device or, on USB, the control pipe): the serial number, and every one
+/// (ADR-0001, ADR-0003, ADR-0005). Opened only while `wanted`, seized once the cap rests (ADR-0017); own device object
+/// by registry ID (never configure the manager's), report buffer alive until the cancel handler ran, the only writes
+/// are output report 4 (LED); feature reports are only read (GET, through the HID device or, on USB, the control pipe): the serial number, and every one
 /// for a description (ADR-0006). Main queue only.
 @MainActor
 final class Devices {
@@ -15,8 +15,13 @@ final class Devices {
         let model: SpaceMouseModel
         /// The USB interface the HID device sits on (the Universal Receiver has one per slot).
         let interface: Int?
+        /// Our device object while open: unseized until the cap rested for macOS, then seized (ADR-0017).
         var device: IOHIDDevice?
+        var buffer: ReportBuffer?
         var reports: Reports?
+        var seized = false
+        /// When the device was last opened, for the log.
+        var openedAt: TimeInterval = 0
         var attempt = 0
     }
 
@@ -346,15 +351,39 @@ final class Devices {
         onChange()
     }
 
+    /// Opens a device without seizing it and passes its input on at once; seizes it only once macOS has seen the cap
+    /// at rest (ADR-0017), so that macOS, which moves the pointer by an unclaimed SpaceMouse, is never left with a
+    /// deflection it repeats for ever. The one way to a seized device: the first open, a holder back in front, a device
+    /// plugged in again, a retry after "busy".
     private func open(_ key: UInt64) {
         guard let entry = entries[key], entry.device == nil else { return }
-        guard let device = Self.ownDevice(key) else {
+        // Kept from a seize that failed, so that buttons and the cap's rest go on; else new.
+        let reports = entry.reports ?? makeReports(key, entry)
+        guard let (device, buffer) = attach(key, reports: reports) else {
+            entries[key]?.reports = nil
             entries[key]?.info.state = "not reachable"
             return
         }
-        let size = max((IOHIDDeviceGetProperty(device, kIOHIDMaxInputReportSizeKey as CFString) as? Int) ?? 64, 64)
+        let result = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
+        guard result == kIOReturnSuccess else { return failed(key, device, buffer, reports, result, seizing: false) }
+        IOHIDDeviceActivate(device)
+        entries[key]?.device = device
+        entries[key]?.buffer = buffer
+        entries[key]?.reports = reports
+        entries[key]?.seized = false
+        entries[key]?.openedAt = ProcessInfo.processInfo.systemUptime
+        entries[key]?.info.state = "open"
+        entries[key]?.attempt = 0
+        reports.awaitRest()
+        log("opened \(entry.info.id), seizing once the cap rests")
+        onChange()
+        watchForRest(key)
+    }
+
+    /// The `Reports` of a device from its open until it is let go (ADR-0010, ADR-0017).
+    private func makeReports(_ key: UInt64, _ entry: Entry) -> Reports {
         let id = entry.info.id
-        let reports = Reports(size: size, model: entry.model,
+        let reports = Reports(model: entry.model,
                               onReport: { [weak self] bytes in
                                   guard let self, self.isEnabled(id), self.wantsReports() else { return }
                                   self.onReport(id, Array(bytes))
@@ -370,42 +399,92 @@ final class Devices {
                               },
                               onBattery: { [weak self] percent, charging in self?.battery(key, percent, charging) },
                               onRest: { [weak self] rest in self?.log("\(id): the cap rests at \(rest)") })
-        IOHIDDeviceRegisterInputReportCallback(device, reports.buffer, size, { context, result, _, _, _, report, length in
+        // From inside a device object's input callback: closing that object waits for the next turn of the queue.
+        reports.onSeizable = { [weak self] in
+            MainActor.after(0) { self?.seize(key) }
+        }
+        return reports
+    }
+
+    /// A device object of our own for `key`, not yet opened, its input reports going to `reports` on the main queue,
+    /// with a buffer of its own.
+    private func attach(_ key: UInt64, reports: Reports) -> (IOHIDDevice, ReportBuffer)? {
+        guard let device = Self.ownDevice(key) else { return nil }
+        let size = max((IOHIDDeviceGetProperty(device, kIOHIDMaxInputReportSizeKey as CFString) as? Int) ?? 64, 64)
+        let buffer = ReportBuffer(size: size)
+        IOHIDDeviceRegisterInputReportCallback(device, buffer.bytes, size, { context, result, _, _, _, report, length in
             guard result == kIOReturnSuccess, let context else { return }
             MainActor.assumeIsolated {
                 Unmanaged<Reports>.fromOpaque(context).takeUnretainedValue().ingest(UnsafeBufferPointer(start: report, count: length))
             }
         }, Unmanaged.passUnretained(reports).toOpaque())
         IOHIDDeviceSetDispatchQueue(device, .main)
-        let result = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeSeizeDevice))
-        guard result == kIOReturnSuccess else {
-            // A queue set but never activated: cancel, then activate, in that order (IOHIDDevice.h), or the cancel
-            // handler never runs and keeps device and buffer for ever, once per failed attempt.
-            cancel(device, keeping: reports)
-            IOHIDDeviceActivate(device)
-            let busy = result == kIOReturnExclusiveAccess
-            let state = busy ? "busy" : String(format: "open failed (0x%08X)", UInt32(bitPattern: result))
-            entries[key]?.info.state = state
-            if entry.attempt == 0 { log("seize \(id): \(state)") }
-            // Another process still holds it (a broker handing over closes first): retry for 2 s.
-            if busy, entry.attempt < 20 {
-                entries[key]?.attempt += 1
-                MainActor.after(0.1) { [weak self] in
-                    guard let self, wanted else { return }
-                    open(key)
-                }
-            } else {
-                onChange()
-            }
-            return
+        return (device, buffer)
+    }
+
+    /// Looks again whether a quiet cap may be seized, as long as the device stays open and unseized; a cap resting off
+    /// its centre keeps reporting and is seized from its reports.
+    private func watchForRest(_ key: UInt64) {
+        guard let device = entries[key]?.device, let delay = entries[key]?.reports?.untilNextCheck else { return }
+        MainActor.after(delay) { [weak self] in
+            guard let self, let entry = entries[key], entry.device === device, !entry.seized,
+                  let reports = entry.reports else { return }
+            if reports.seizable != nil { seize(key) } else { watchForRest(key) }
         }
+    }
+
+    /// Once the cap rests for macOS (asked again here: a report may have come since the gate opened), the unseized
+    /// device object is closed and the device opened again, seized, with the same `Reports` (ADR-0017). Failing, it
+    /// goes back to `open` like any failed open.
+    private func seize(_ key: UInt64) {
+        guard let entry = entries[key], !entry.seized, let old = entry.device, let oldBuffer = entry.buffer,
+              let reports = entry.reports, let reason = reports.seizable else { return }
+        reports.seized()
+        IOHIDDeviceClose(old, IOOptionBits(kIOHIDOptionsTypeNone))
+        cancel(old, keeping: oldBuffer, reports)
+        entries[key]?.device = nil
+        entries[key]?.buffer = nil
+        guard let (device, buffer) = attach(key, reports: reports) else {
+            entries[key]?.reports = nil
+            entries[key]?.info.state = "not reachable"
+            return onChange()
+        }
+        let result = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeSeizeDevice))
+        guard result == kIOReturnSuccess else { return failed(key, device, buffer, reports, result, seizing: true) }
         IOHIDDeviceActivate(device)
         entries[key]?.device = device
-        entries[key]?.reports = reports
-        entries[key]?.info.state = "open"
-        entries[key]?.attempt = 0
-        log("seized \(id)")
-        onChange()
+        entries[key]?.buffer = buffer
+        entries[key]?.seized = true
+        let after = String(format: "%.2f", ProcessInfo.processInfo.systemUptime - entry.openedAt)
+        log("seized \(entry.info.id) \(after) s after opening: \(reason == .quiet ? "cap at rest" : "cap resting off its centre")")
+    }
+
+    /// An open or seize that failed: the device object goes, and another process still holding the device (a broker
+    /// handing over closes first) is waited for 2 s, through `open` and its rule again.
+    private func failed(_ key: UInt64, _ device: IOHIDDevice, _ buffer: ReportBuffer, _ reports: Reports,
+                        _ result: IOReturn, seizing: Bool) {
+        // A queue set but never activated: cancel, then activate, in that order (IOHIDDevice.h), or the cancel
+        // handler never runs and keeps device and buffer for ever, once per failed attempt.
+        cancel(device, keeping: buffer, reports)
+        IOHIDDeviceActivate(device)
+        guard let entry = entries[key] else { return }
+        let busy = result == kIOReturnExclusiveAccess
+        let state = busy ? "busy" : String(format: "open failed (0x%08X)", UInt32(bitPattern: result))
+        entries[key]?.info.state = state
+        if entry.attempt == 0 { log("\(seizing ? "seize" : "open") \(entry.info.id): \(state)") }
+        if busy, entry.attempt < 20 {
+            // The decoding goes on after the retry: buttons are not reported twice, the cap's rest stays.
+            entries[key]?.reports = reports
+            entries[key]?.attempt += 1
+            MainActor.after(0.1) { [weak self] in
+                guard let self, wanted else { return }
+                open(key)
+            }
+            if seizing { onChange() }
+        } else {
+            entries[key]?.reports = nil
+            onChange()
+        }
     }
 
     private func battery(_ key: UInt64, _ percent: Int, _ charging: Bool) {
@@ -416,20 +495,23 @@ final class Devices {
     }
 
     private func close(_ key: UInt64) {
-        guard let entry = entries[key], let device = entry.device, let reports = entry.reports else { return }
-        IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone))
-        cancel(device, keeping: reports)
-        entries[key]?.device = nil
+        guard let entry = entries[key] else { return }
         entries[key]?.reports = nil
+        guard let device = entry.device, let buffer = entry.buffer, let reports = entry.reports else { return }
+        IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone))
+        cancel(device, keeping: buffer, reports)
+        entries[key]?.device = nil
+        entries[key]?.buffer = nil
+        entries[key]?.seized = false
         entries[key]?.info.state = "closed"
-        log("released \(entry.info.id)")
+        log("released \(entry.info.id)" + (entry.seized ? "" : " (not seized yet)"))
         onChange()
     }
 
-    /// Cancels a device object; it and its report buffer live until the cancel handler ran, as IOKit may still
-    /// deliver into the buffer.
-    private func cancel(_ device: IOHIDDevice, keeping reports: Reports) {
-        IOHIDDeviceSetCancelHandler(device) { withExtendedLifetime((device, reports)) {} }
+    /// Cancels a device object; it, its report buffer and the `Reports` its callback names live until the cancel
+    /// handler ran, as IOKit may still deliver into the buffer.
+    private func cancel(_ device: IOHIDDevice, keeping buffer: ReportBuffer, _ reports: Reports) {
+        IOHIDDeviceSetCancelHandler(device) { withExtendedLifetime((device, buffer, reports)) {} }
         IOHIDDeviceCancel(device)
     }
 
@@ -446,10 +528,25 @@ final class Devices {
     }
 }
 
-/// Report buffer of one open device; decodes on the main queue.
+/// The memory IOKit writes the input reports of one device object into; alive until that object's cancel handler ran.
+/// A device reopened to seize it (ADR-0017) gets a new one, its `Reports` stays.
+@MainActor
+final class ReportBuffer {
+    nonisolated(unsafe) let bytes: UnsafeMutablePointer<UInt8>
+    let size: Int
+
+    init(size: Int) {
+        bytes = .allocate(capacity: size)
+        self.size = size
+    }
+
+    deinit { bytes.deallocate() }
+}
+
+/// What the input reports of one open device become; decodes on the main queue. Lives from the open until the device
+/// is let go, across the reopen that seizes it (ADR-0017), so that buttons, axes and the cap's rest go on unbroken.
 @MainActor
 final class Reports {
-    nonisolated(unsafe) let buffer: UnsafeMutablePointer<UInt8>
     private let model: SpaceMouseModel
     private let onReport: (UnsafeBufferPointer<UInt8>) -> Void
     private let onAxes: (SpaceMouseAxes) -> Void
@@ -461,13 +558,16 @@ final class Reports {
     /// Where this cap rests (ADR-0010): what goes on is the deflection from it.
     private var rest = CapRest()
     private var buttons: SpaceMouseButtons = []
+    /// While the device is open but not seized: whether macOS has seen the cap at rest (ADR-0017).
+    private var gate: SeizeGate?
+    /// A report found the gate open; whoever seizes asks `seizable` again before it does.
+    var onSeizable: () -> Void = {}
 
-    init(size: Int, model: SpaceMouseModel, onReport: @escaping (UnsafeBufferPointer<UInt8>) -> Void,
+    init(model: SpaceMouseModel, onReport: @escaping (UnsafeBufferPointer<UInt8>) -> Void,
          onAxes: @escaping (SpaceMouseAxes) -> Void,
          onButtons: @escaping (SpaceMouseButtons) -> Void, onBattery: @escaping (Int, Bool) -> Void,
          onRest: @escaping (SpaceMouseAxes) -> Void = { _ in },
          clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
-        buffer = .allocate(capacity: size)
         self.model = model
         self.onReport = onReport
         self.onAxes = onAxes
@@ -477,11 +577,28 @@ final class Reports {
         self.clock = clock
     }
 
-    deinit { buffer.deallocate() }
+    /// The device was opened without seizing: watch for the cap at rest from now on (ADR-0017).
+    func awaitRest() { gate = SeizeGate(openedAt: clock()) }
+
+    /// Watching for the cap at rest: opened without seizing, not yet seized.
+    var awaitingRest: Bool { gate != nil }
+
+    /// Whether the device may be seized now, and why; nil while not, or not watching.
+    var seizable: SeizeGate.Reason? { gate?.ready(at: clock()) }
+
+    /// The device is seized: the watch is over.
+    func seized() { gate = nil }
+
+    /// Seconds until the next look without a report; nil while not watching.
+    var untilNextCheck: TimeInterval? {
+        let now = clock()
+        return gate.map { $0.nextCheck(after: now) - now }
+    }
 
     func ingest(_ bytes: UnsafeBufferPointer<UInt8>) {
         onReport(bytes)
         if let now = SpaceMouseReport.buttons(bytes, model: model) {
+            gate?.buttons(now, at: clock())
             if now != buttons {
                 buttons = now
                 onButtons(now)
@@ -489,10 +606,13 @@ final class Reports {
         } else if let battery = SpaceMouseReport.battery(bytes) {
             onBattery(battery.percent, battery.charging)
         } else if SpaceMouseReport.take(bytes, into: &pending), SpaceMouseReport.completes(bytes) {
+            let time = clock()
+            gate?.axes(pending, at: time)
             let before = rest.rest
-            let axes = rest.corrected(pending, at: clock())
+            let axes = rest.corrected(pending, at: time)
             if rest.rest != before { onRest(rest.rest) }
             onAxes(axes)
         }
+        if seizable != nil { onSeizable() }
     }
 }

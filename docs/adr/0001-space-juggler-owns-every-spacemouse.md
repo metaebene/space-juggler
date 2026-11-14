@@ -1,6 +1,7 @@
 # ADR-0001: Space Juggler, one broker, owns every SpaceMouse and gives it to one client at a time
 
-- Status: accepted (Tim, 2026-10-14); broker built as a spike only (docs/spike.md)
+- Status: accepted (Tim, 2026-10-14); broker built as a spike only (docs/spike.md); seizing waits for the cap at rest
+  by ADR-0017
 - Date: 2026-10-14
 - Related: ADR-0002 (the helper app), ADR-0003 (several SpaceMice), ADR-0004 (3DxWare); stagehand
   `docs/spacemouse-findings.md`
@@ -41,7 +42,8 @@ SpaceMouse and gives each to exactly one client. The four programs become its cl
      always comes last (Tim, 2026-10-14): it claims its own app (so that "learning" a trigger works while it is in
      front) and marks its claim `backgroundLast`.
   3. Nobody listens in: input goes to the holder only (Tim, 2026-10-14).
-- **Seizing.** The broker seizes a SpaceMouse while somebody holds it and releases it otherwise.
+- **Seizing.** The broker seizes a SpaceMouse while somebody holds it and releases it otherwise (amended by ADR-0017:
+  opened at once, seized once macOS has seen the cap at rest).
 - **Protocol.** One JSON object per line (`Wire`), versioned by `Wire.protocolVersion`; public, so other programs may
   be clients.
 - **Model knowledge** lives only in the `SpaceMouseKit` library of this repository (IDs, buttons, reports, axes, LED,

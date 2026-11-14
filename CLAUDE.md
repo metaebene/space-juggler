@@ -21,7 +21,7 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
   ab und schreibt einen Bericht fürs GitHub-Issue; `Scripts/build-space-probe.sh` (mit Space Juggler.app darin).
 - Entscheidungen: `docs/adr/`. Hardware-Erkenntnisse stehen noch in Stagehand (`docs/spacemouse-findings.md`).
 
-## Regeln (ADR-0001 … 0016)
+## Regeln (ADR-0001 … 0017)
 - Nur Space Juggler öffnet eine SpaceMouse (seize); Clients nie. Läuft der 3Dconnexion-Helper, meldet sich Space
   Juggler als einziger manueller Treiber-Client an (`'++++'`, **immer mit Namen**, ohne stürzt Helper 1.4.4 ab),
   aktiviert ihn nur für einen Halter, bedient dann nur Ansprüche für die vordere App (ADR-0004). Scheitert die
@@ -53,6 +53,11 @@ Sprache mit dem Nutzer: Deutsch. Code, Kommentare und Docs auf Englisch (CLAUDE.
 - Erkannt wird jeder Multi-axis Controller (1/8 in `DeviceUsagePairs`) von 046D/256F; ein Modell, das nicht `checked`
   ist, gilt nie ohne diesen Zusatz als unterstützt (ADR-0005). An Geräte wird nur die LED geschrieben, Feature-Reports
   nur gelesen.
+- Ergriffen wird eine SpaceMouse erst, wenn macOS die Kappe in Ruhe gesehen hat (ohne Treiber macht macOS sie zum
+  Zeiger und wiederholt die letzte Auslenkung, bis Nullen kommen): erst ohne Ergreifen öffnen und Eingaben sofort an den
+  Halter geben, ergreifen nur über `Devices.seize`, wenn `SeizeGate` es sagt: zuletzt Nullen (oder nichts), keine Taste
+  gedrückt, 0,25 s still; oder die Kappe ruht nach `CapRest` neben der Mitte (1,5 s). Nie nach bloßer Frist; dieselben
+  `Reports` über das erneute Öffnen hinweg (ADR-0017).
 - Achsen eines ergriffenen Geräts gehen als Auslenkung von der Ruhelage der Kappe an den Halter, nur über `CapRest`:
   bleibt sie 1,5 s fast gleich und nahe der Mitte, ist das ihre Ruhelage, lauter Nullen setzen sie zurück; Rohes
   (`--raw`, Space Probe) bleibt roh, der Treiber-Weg unverändert (ADR-0010).
