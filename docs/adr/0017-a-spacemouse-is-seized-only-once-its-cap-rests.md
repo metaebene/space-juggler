@@ -1,6 +1,6 @@
 # ADR-0017: A SpaceMouse is seized only once macOS has seen its cap at rest
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-14
 - Amends: ADR-0001 (its "Seizing": the broker opens a SpaceMouse while somebody holds it, and seizes it once the cap
   rests)
@@ -87,7 +87,12 @@
 - `ReportsTests`: opened while tilted, the holder steers at once, seizable only 0.25 s after the zeros (found by a look,
   not a report), the watch over once seized, the buttons going on after it; a worn cap found from its own reports at
   1.5 s, and no longer seizable once a hand comes before the seize; nothing seizable unless watching.
-- Open, at the device (3Dconnexion's driver extension off): the cap held tilted while an app takes the SpaceMouse,
-  then let go: the pointer stops and the log says "seized … cap at rest"; an untouched cap seized about 0.25 s after
-  the open; an old SpaceNavigator resting off its centre seized about 1.5 s after it ("cap resting off its centre");
-  no Input Monitoring prompt for the unseized open.
+- 2026-11-14 at the device (Tim's Mac, SpaceMouse Compact over USB, 3Dconnexion's helper not running, macOS's
+  `AppleUserHIDEventDriver` with `MultiAxisPointer` on the device, so tilting moved the pointer): before, with version
+  17, the cap held tilted while Kugelblitz took the SpaceMouse and then let go – the pointer kept moving up until
+  Kugelblitz was quit and the cap tapped. With version 18 (Kugelblitz built against this branch): the cap held tilted,
+  ⌘-Tab to Kugelblitz – the globe steered at once, the pointer moved along while held; let go – the pointer stopped,
+  log "seized … 2.66 s after opening: cap at rest"; afterwards tilting moved only the globe. An untouched cap: "seized
+  … 0.26 s after opening: cap at rest". No Input Monitoring prompt appeared.
+- Open, at the device: an old SpaceNavigator resting off its centre seized about 1.5 s after the open ("cap resting
+  off its centre"); a button held while an app takes the SpaceMouse.
